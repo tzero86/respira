@@ -104,7 +104,13 @@ internal fun LinkImportDialog(
                 .onSuccess { onImported() }
                 .onFailure { error ->
                     if (error is CancellationException) throw error
-                    state = LinkState.DownloadFailed(pending, previous)
+                    val failure = when {
+                        error is YouTubeUnavailableException -> DownloadFailure.UNAVAILABLE
+                        error.message?.startsWith("HTTP 403") == true ||
+                            error.message?.startsWith("HTTP 410") == true -> DownloadFailure.EXPIRED
+                        else -> DownloadFailure.GENERIC
+                    }
+                    state = LinkState.DownloadFailed(pending, previous, failure)
                 }
         }
     }
@@ -402,7 +408,7 @@ internal fun LinkImportDialog(
                         is LinkState.DownloadFailed -> {
                             item {
                                 Text(
-                                    text = stringResource(R.string.med_link_download_failed),
+                                    text = downloadFailureText(current.failure),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = RespiraColors.Rose,
                                 )
@@ -565,6 +571,13 @@ private fun failureText(reason: FailureReason): String = when (reason) {
 }
 
 @Composable
+private fun downloadFailureText(failure: DownloadFailure): String = when (failure) {
+    DownloadFailure.UNAVAILABLE -> stringResource(R.string.med_link_youtube_unavailable)
+    DownloadFailure.EXPIRED -> stringResource(R.string.med_link_expired)
+    DownloadFailure.GENERIC -> stringResource(R.string.med_link_download_failed)
+}
+
+@Composable
 private fun unsupportedText(reason: UnsupportedReason): String = when (reason) {
     UnsupportedReason.YOUTUBE -> stringResource(R.string.med_link_youtube)
     UnsupportedReason.YOUTUBE_UNAVAILABLE -> stringResource(R.string.med_link_youtube_unavailable)
@@ -584,13 +597,19 @@ private fun readClipboard(context: Context): String? {
 
 private data class PendingDownload(val source: AudioSource, val title: String)
 
+private enum class DownloadFailure { UNAVAILABLE, EXPIRED, GENERIC }
+
 private sealed interface LinkState {
     data object Idle : LinkState
     data object Inspecting : LinkState
     data class Direct(val audio: LinkInspection.Audio, val title: String) : LinkState
     data class Feed(val feed: LinkInspection.Feed) : LinkState
     data class Downloading(val pending: PendingDownload, val previous: LinkState) : LinkState
-    data class DownloadFailed(val pending: PendingDownload, val previous: LinkState) : LinkState
+    data class DownloadFailed(
+        val pending: PendingDownload,
+        val previous: LinkState,
+        val failure: DownloadFailure,
+    ) : LinkState
     data class Failed(val reason: FailureReason) : LinkState
     data class Unsupported(val reason: UnsupportedReason) : LinkState
 }

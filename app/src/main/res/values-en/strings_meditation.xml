@@ -70,6 +70,7 @@
     <string name="med_link_invalid_response">That content couldn\'t be read. Try another link.</string>
     <string name="med_link_http_error">The link returned an error. Try another one.</string>
     <string name="med_link_download_failed">Couldn\'t download the audio. Try again.</string>
+    <string name="med_link_expired">The audio link expired. Try again.</string>
     <string name="med_from_link">From a link</string>
     <string name="med_shared">Shared</string>
 

@@ -70,6 +70,7 @@
     <string name="med_link_invalid_response">No se pudo leer ese contenido. Prueba con otro enlace.</string>
     <string name="med_link_http_error">El enlace respondió con un error. Prueba con otro.</string>
     <string name="med_link_download_failed">No se pudo descargar el audio. Inténtalo de nuevo.</string>
+    <string name="med_link_expired">El enlace del audio caducó. Inténtalo de nuevo.</string>
     <string name="med_from_link">Desde un enlace</string>
     <string name="med_shared">Compartida</string>
 

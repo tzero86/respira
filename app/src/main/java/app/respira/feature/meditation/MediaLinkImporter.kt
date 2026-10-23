@@ -65,6 +65,9 @@ private const val MAX_FEED_BYTES = 3 * 1024 * 1024
 private const val MAX_DOWNLOAD_BYTES = 300L * 1024 * 1024
 private const val MAX_EPISODES = 200
 private const val COPY_BUFFER = 64 * 1024
+private const val MAX_STREAM_ATTEMPTS = 2
+private const val RANGE_FROM_START = "bytes=0-"
+private val EXPIRED_STREAM_CODES = setOf(403, 410)
 
 private val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "ogg", "opus", "wav", "flac")
 
@@ -331,7 +334,11 @@ private fun normalizeUrl(raw: String): URL? {
     return url
 }
 
-private fun openFollowingRedirects(start: URL, userAgent: String = USER_AGENT): Pair<HttpURLConnection, URL> {
+private fun openFollowingRedirects(
+    start: URL,
+    userAgent: String = USER_AGENT,
+    range: String? = null,
+): Pair<HttpURLConnection, URL> {
     var current = start
     var redirects = 0
     while (true) {
@@ -344,6 +351,7 @@ private fun openFollowingRedirects(start: URL, userAgent: String = USER_AGENT): 
         connection.setRequestProperty("User-Agent", userAgent)
         connection.setRequestProperty("Accept", ACCEPT_HEADER)
         connection.setRequestProperty("Accept-Encoding", "identity")
+        range?.let { connection.setRequestProperty("Range", it) }
 
         val code = connection.responseCode
         if (code in 300..399) {
@@ -373,13 +381,37 @@ private class AudioStream(
 )
 
 private fun resolveYouTubeStream(videoId: String): AudioStream {
-    val audio = YouTubeResolver.resolve(videoId).getOrElse { error ->
-        throw (error as? IOException) ?: IOException("YouTube resolve failed", error)
+    var lastError: IOException? = null
+    repeat(MAX_STREAM_ATTEMPTS) {
+        val audio = YouTubeResolver.resolve(videoId).getOrElse { error ->
+            throw (error as? IOException) ?: IOException("YouTube resolve failed", error)
+        }
+        val url = normalizeUrl(audio.streamUrl) ?: throw IOException("Invalid stream URL")
+        val (connection, finalUrl) = openFollowingRedirects(
+            url,
+            YOUTUBE_USER_AGENT,
+            range = RANGE_FROM_START,
+        )
+        val code = connection.responseCode
+        if (code in 200..299) {
+            return AudioStream(
+                connection = connection,
+                finalUrl = finalUrl,
+                sizeHint = contentRangeTotal(connection.getHeaderField("Content-Range"))
+                    ?: audio.sizeBytes,
+                mimeHint = audio.mimeType,
+                isYouTube = true,
+            )
+        }
+        connection.disconnect()
+        if (code !in EXPIRED_STREAM_CODES) throw IOException("HTTP $code")
+        lastError = IOException("HTTP $code")
     }
-    val url = normalizeUrl(audio.streamUrl) ?: throw IOException("Invalid stream URL")
-    val (connection, finalUrl) = openFollowingRedirects(url, YOUTUBE_USER_AGENT)
-    return AudioStream(connection, finalUrl, audio.sizeBytes, audio.mimeType, isYouTube = true)
+    throw lastError ?: IOException("YouTube stream failed")
 }
+
+private fun contentRangeTotal(header: String?): Long? =
+    header?.substringAfter('/', "")?.trim()?.toLongOrNull()?.takeIf { it > 0L }
 
 private fun youtubeExtension(contentType: String?): String {
     val type = contentType?.substringBefore(';')?.trim()?.lowercase()

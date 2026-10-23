@@ -23,16 +23,25 @@ internal class YouTubeUnavailableException(status: String) :
 internal const val YOUTUBE_USER_AGENT =
     "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip"
 
+private const val VISIONOS_USER_AGENT =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 " +
+        "(KHTML, like Gecko) Version/18.1 Safari/605.1.15"
+
 internal object YouTubeResolver {
 
     private const val ENDPOINT =
         "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+    private const val VISITOR_ENDPOINT =
+        "https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false"
     private const val CONNECT_TIMEOUT_MS = 20_000
     private const val READ_TIMEOUT_MS = 20_000
     private const val MAX_REDIRECTS = 5
     private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
     private const val PREFERRED_ITAG = 140
     private const val FALLBACK_ITAG = 251
+    private const val VISITOR_TTL_MS = 30 * 60 * 1000L
+
+    @Volatile private var cachedVisitor: Pair<String, Long>? = null
 
     private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
     private val VIDEO_PATH_PREFIXES = setOf("shorts", "embed", "live")
@@ -60,6 +69,17 @@ internal object YouTubeResolver {
     )
 
     private val CLIENTS = listOf(
+        Client(
+            name = "VISIONOS",
+            version = "1.02.4",
+            userAgent = VISIONOS_USER_AGENT,
+            extra = mapOf(
+                "deviceMake" to "Apple",
+                "deviceModel" to "RealityDevice14,1",
+                "osName" to "visionOS",
+                "osVersion" to "2.0.0.22N198",
+            ),
+        ),
         Client(
             name = "ANDROID",
             version = "20.10.38",
@@ -116,11 +136,12 @@ internal object YouTubeResolver {
     }
 
     private fun resolveOrThrow(videoId: String): YouTubeAudio {
+        val visitor = visitorData()
         var lastStatus: String? = null
         var lastError: IOException? = null
         for (client in CLIENTS) {
             val payload = try {
-                player(videoId, client)
+                player(videoId, client, visitor)
             } catch (error: IOException) {
                 lastError = error
                 continue
@@ -143,7 +164,11 @@ internal object YouTubeResolver {
             ?: IOException("YouTube player request failed")
     }
 
-    private fun player(videoId: String, client: Client): JSONObject {
+    private fun player(
+        videoId: String,
+        client: Client,
+        visitor: String?,
+    ): JSONObject {
         var current = URL(ENDPOINT)
         var body: ByteArray? = requestBody(videoId, client).toByteArray(Charsets.UTF_8)
         var redirects = 0
@@ -156,6 +181,7 @@ internal object YouTubeResolver {
             connection.setRequestProperty("User-Agent", client.userAgent)
             connection.setRequestProperty("Accept-Encoding", "gzip")
             connection.setRequestProperty("X-Goog-Api-Format-Version", "2")
+            visitor?.let { connection.setRequestProperty("X-Goog-Visitor-Id", it) }
             if (body != null) {
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json")
@@ -182,6 +208,47 @@ internal object YouTubeResolver {
             } finally {
                 connection.disconnect()
             }
+        }
+    }
+
+    private fun visitorData(): String? {
+        val cached = cachedVisitor
+        if (cached != null && System.currentTimeMillis() - cached.second < VISITOR_TTL_MS) {
+            return cached.first
+        }
+        val fresh = try {
+            fetchVisitorData()
+        } catch (error: Exception) {
+            null
+        } ?: return cached?.first
+        cachedVisitor = fresh to System.currentTimeMillis()
+        return fresh
+    }
+
+    private fun fetchVisitorData(): String? {
+        val body = JSONObject()
+            .put("context", JSONObject().put("client", JSONObject()
+                .put("clientName", "WEB")
+                .put("clientVersion", "2.20241201.00.00")))
+            .toString()
+            .toByteArray(Charsets.UTF_8)
+        val connection = URL(VISITOR_ENDPOINT).openConnection() as HttpURLConnection
+        try {
+            connection.connectTimeout = CONNECT_TIMEOUT_MS
+            connection.readTimeout = READ_TIMEOUT_MS
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.setRequestProperty("User-Agent", VISIONOS_USER_AGENT)
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Origin", "https://www.youtube.com")
+            connection.outputStream.use { it.write(body) }
+            if (connection.responseCode !in 200..299) return null
+            val payload = JSONObject(readCapped(streamFor(connection)))
+            return payload.optJSONObject("responseContext")
+                ?.optString("visitorData")
+                ?.takeIf { it.isNotBlank() }
+        } finally {
+            connection.disconnect()
         }
     }
 

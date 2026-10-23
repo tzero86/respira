@@ -88,4 +88,5 @@ persists across launches.
 
 ## Status
 
-`0.1.0-alpha07` — YouTube audio import and in-app updates.
+`0.1.0-alpha08` — YouTube import fixed for share links; dead videos report the
+correct reason.
