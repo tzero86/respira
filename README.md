@@ -88,5 +88,6 @@ persists across launches.
 
 ## Status
 
-`0.1.0-alpha08` — YouTube import fixed for share links; dead videos report the
-correct reason.
+`0.1.0-alpha09` — downloads run in a foreground service with a progress
+notification, so they survive app switching and dialog dismissal, and transfer over
+four parallel ranged connections instead of one.

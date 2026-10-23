@@ -7,6 +7,8 @@ import android.provider.OpenableColumns
 import android.util.Xml
 import app.respira.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -18,11 +20,15 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.URLDecoder
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 import java.util.zip.GZIPInputStream
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -67,6 +73,10 @@ private const val MAX_EPISODES = 200
 private const val COPY_BUFFER = 64 * 1024
 private const val MAX_STREAM_ATTEMPTS = 2
 private const val RANGE_FROM_START = "bytes=0-"
+private const val DOWNLOAD_WORKERS = 4
+private const val CHUNK_BYTES = 4L * 1024 * 1024
+private const val CHUNK_ATTEMPTS = 2
+private const val PROGRESS_STEP = 256 * 1024L
 private val EXPIRED_STREAM_CODES = setOf(403, 410)
 
 private val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "ogg", "opus", "wav", "flac")
@@ -136,7 +146,7 @@ internal suspend fun downloadAudio(
             is AudioSource.YouTube -> resolveYouTubeStream(source.videoId)
             is AudioSource.Direct -> {
                 val parsed = normalizeUrl(source.url) ?: throw IOException("Invalid audio URL")
-                val opened = openFollowingRedirects(parsed)
+                val opened = openFollowingRedirects(parsed, range = RANGE_FROM_START)
                 val redirectedId = if (isYouTubeHost(opened.second.host)) {
                     opened.first.disconnect()
                     YouTubeResolver.videoId(opened.second.toString())
@@ -147,7 +157,19 @@ internal suspend fun downloadAudio(
                 if (redirectedId != null) {
                     resolveYouTubeStream(redirectedId)
                 } else {
-                    AudioStream(opened.first, opened.second, null, null, isYouTube = false)
+                    val code = opened.first.responseCode
+                    AudioStream(
+                        connection = opened.first,
+                        finalUrl = opened.second,
+                        sizeHint = null,
+                        rangeTotal = if (code == 206) {
+                            contentRangeTotal(opened.first.getHeaderField("Content-Range"))
+                        } else {
+                            null
+                        },
+                        mimeHint = null,
+                        isYouTube = false,
+                    )
                 }
             }
         }
@@ -184,10 +206,25 @@ internal suspend fun downloadAudio(
             }
             if (total != null && total > MAX_DOWNLOAD_BYTES) throw DownloadTooLargeException()
 
-            onProgress(0L, total)
-            streamFor(stream.connection).use { input ->
-                FileOutputStream(part).use { output ->
-                    copyDownload(input, output, total, onProgress)
+            val rangeTotal = stream.rangeTotal
+                ?.takeIf { !compressed && it <= MAX_DOWNLOAD_BYTES }
+
+            if (rangeTotal != null) {
+                stream.connection.disconnect()
+                onProgress(0L, rangeTotal)
+                chunkedDownload(
+                    url = stream.finalUrl,
+                    part = part,
+                    total = rangeTotal,
+                    userAgent = if (stream.isYouTube) YOUTUBE_USER_AGENT else USER_AGENT,
+                    onProgress = onProgress,
+                )
+            } else {
+                onProgress(0L, total)
+                streamFor(stream.connection).use { input ->
+                    FileOutputStream(part).use { output ->
+                        copyDownload(input, output, total, onProgress)
+                    }
                 }
             }
 
@@ -376,6 +413,7 @@ private class AudioStream(
     val connection: HttpURLConnection,
     val finalUrl: URL,
     val sizeHint: Long?,
+    val rangeTotal: Long?,
     val mimeHint: String?,
     val isYouTube: Boolean,
 )
@@ -397,8 +435,12 @@ private fun resolveYouTubeStream(videoId: String): AudioStream {
             return AudioStream(
                 connection = connection,
                 finalUrl = finalUrl,
-                sizeHint = contentRangeTotal(connection.getHeaderField("Content-Range"))
-                    ?: audio.sizeBytes,
+                sizeHint = audio.sizeBytes,
+                rangeTotal = if (code == 206) {
+                    contentRangeTotal(connection.getHeaderField("Content-Range"))
+                } else {
+                    null
+                },
                 mimeHint = audio.mimeType,
                 isYouTube = true,
             )
@@ -497,12 +539,161 @@ private suspend fun copyDownload(
         downloaded += read
         if (downloaded > MAX_DOWNLOAD_BYTES) throw DownloadTooLargeException()
         output.write(buffer, 0, read)
-        if (downloaded - lastReported >= 256 * 1024L || (total != null && downloaded >= total)) {
+        if (downloaded - lastReported >= PROGRESS_STEP || (total != null && downloaded >= total)) {
             onProgress(downloaded, total)
             lastReported = downloaded
         }
     }
     onProgress(downloaded, total ?: downloaded)
+}
+
+private suspend fun chunkedDownload(
+    url: URL,
+    part: File,
+    total: Long,
+    userAgent: String,
+    onProgress: (downloaded: Long, total: Long?) -> Unit,
+) {
+    val nextChunk = AtomicLong(0L)
+    val downloaded = AtomicLong(0L)
+    val reported = AtomicLong(0L)
+
+    RandomAccessFile(part, "rw").use { file ->
+        file.setLength(total)
+        file.channel.use { channel ->
+            coroutineScope {
+                repeat(DOWNLOAD_WORKERS) {
+                    async {
+                        val buffer = ByteArray(COPY_BUFFER)
+                        val slice = ByteBuffer.allocateDirect(COPY_BUFFER)
+                        while (true) {
+                            val index = nextChunk.getAndIncrement()
+                            val start = index * CHUNK_BYTES
+                            if (start >= total) break
+                            val end = minOf(start + CHUNK_BYTES, total) - 1
+                            downloadChunk(
+                                url = url,
+                                channel = channel,
+                                start = start,
+                                end = end,
+                                total = total,
+                                userAgent = userAgent,
+                                buffer = buffer,
+                                slice = slice,
+                                downloaded = downloaded,
+                                reported = reported,
+                                onProgress = onProgress,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+    reportProgress(total, total, reported, onProgress, force = true)
+}
+
+private suspend fun downloadChunk(
+    url: URL,
+    channel: FileChannel,
+    start: Long,
+    end: Long,
+    total: Long,
+    userAgent: String,
+    buffer: ByteArray,
+    slice: ByteBuffer,
+    downloaded: AtomicLong,
+    reported: AtomicLong,
+    onProgress: (downloaded: Long, total: Long?) -> Unit,
+) {
+    var position = start
+    var lastError: Exception? = null
+    repeat(CHUNK_ATTEMPTS) {
+        if (position > end) return
+        val connection = try {
+            openChunk(url, userAgent, position, end)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            lastError = error
+            null
+        }
+        if (connection != null) {
+            try {
+                streamFor(connection).use { input ->
+                    while (position <= end) {
+                        currentCoroutineContext().ensureActive()
+                        val limit = minOf(buffer.size.toLong(), end - position + 1).toInt()
+                        val read = input.read(buffer, 0, limit)
+                        if (read < 0) break
+                        slice.clear()
+                        slice.put(buffer, 0, read)
+                        slice.flip()
+                        var writeAt = position
+                        while (slice.hasRemaining()) {
+                            writeAt += channel.write(slice, writeAt)
+                        }
+                        position = writeAt
+                        val now = downloaded.addAndGet(read.toLong())
+                        if (now > MAX_DOWNLOAD_BYTES) throw DownloadTooLargeException()
+                        reportProgress(now, total, reported, onProgress)
+                    }
+                }
+                if (position <= end) throw IOException("Incomplete chunk")
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                lastError = error
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+    if (position <= end) throw lastError ?: IOException("Chunk failed")
+}
+
+private fun openChunk(url: URL, userAgent: String, start: Long, end: Long): HttpURLConnection {
+    val (connection, _) = openFollowingRedirects(
+        url,
+        userAgent,
+        range = "bytes=$start-$end",
+    )
+    val code = runCatching { connection.responseCode }.getOrElse { error ->
+        connection.disconnect()
+        throw error
+    }
+    if (code != 206) {
+        connection.disconnect()
+        throw IOException("HTTP $code")
+    }
+    if (connection.contentEncoding?.equals("gzip", ignoreCase = true) == true) {
+        connection.disconnect()
+        throw IOException("Chunked encoding")
+    }
+    val rangeStart = "bytes $start-"
+    val contentRange = connection.getHeaderField("Content-Range")
+    if (contentRange == null || !contentRange.startsWith(rangeStart)) {
+        connection.disconnect()
+        throw IOException("Unexpected range")
+    }
+    return connection
+}
+
+private fun reportProgress(
+    now: Long,
+    total: Long,
+    reported: AtomicLong,
+    onProgress: (downloaded: Long, total: Long?) -> Unit,
+    force: Boolean = false,
+) {
+    val last = reported.get()
+    if (force) {
+        reported.set(now)
+        onProgress(now, total)
+        return
+    }
+    if (now - last < PROGRESS_STEP) return
+    if (reported.compareAndSet(last, now)) onProgress(now, total)
 }
 
 private suspend fun copyLimited(input: InputStream, output: OutputStream) {

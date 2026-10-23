@@ -74,6 +74,11 @@
     <string name="med_from_link">From a link</string>
     <string name="med_shared">Shared</string>
 
+    <string name="med_download_channel_name">Downloads</string>
+    <string name="med_download_channel_description">Progress of audio downloads to your library</string>
+    <string name="med_download_notification_text">Downloading audio</string>
+    <string name="med_download_cancel">Cancel</string>
+
     <string name="med_share_importing">Importing to Respira…</string>
     <string name="med_share_added">Added: %1$s</string>
     <string name="med_share_failed">Couldn\'t import that audio.</string>

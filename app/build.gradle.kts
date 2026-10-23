@@ -21,8 +21,8 @@ android {
         applicationId = "app.respira"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.1.0-alpha08"
+        versionCode = 9
+        versionName = "0.1.0-alpha09"
     }
 
     signingConfigs {

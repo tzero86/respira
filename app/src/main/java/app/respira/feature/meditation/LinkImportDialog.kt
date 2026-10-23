@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.respira.R
 import app.respira.ui.components.GhostPill
 import app.respira.ui.components.GlassCard
@@ -56,9 +58,7 @@ import app.respira.ui.components.PillButton
 import app.respira.ui.components.SoftIconButton
 import app.respira.ui.components.formatDuration
 import app.respira.ui.theme.RespiraColors
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 internal fun LinkImportDialog(
@@ -69,13 +69,13 @@ internal fun LinkImportDialog(
     val scope = rememberCoroutineScope()
     var url by rememberSaveable { mutableStateOf("") }
     var state by remember { mutableStateOf<LinkState>(LinkState.Idle) }
-    var downloadedBytes by remember { mutableStateOf(0L) }
-    var totalBytes by remember { mutableStateOf<Long?>(null) }
-    var downloadJob by remember { mutableStateOf<Job?>(null) }
+    var previous by remember { mutableStateOf<LinkState?>(null) }
+    val download by Downloads.state.collectAsStateWithLifecycle()
+    var lastDownload by remember { mutableStateOf(download) }
 
     fun analyze() {
         val value = url.trim()
-        if (value.isEmpty() || state is LinkState.Inspecting || state is LinkState.Downloading) return
+        if (value.isEmpty() || state is LinkState.Inspecting || download is DownloadState.Active) return
         state = LinkState.Inspecting
         scope.launch {
             val result = inspectLink(context, value)
@@ -88,41 +88,27 @@ internal fun LinkImportDialog(
         }
     }
 
-    fun startDownload(pending: PendingDownload, previous: LinkState) {
-        downloadJob?.cancel()
-        downloadedBytes = 0L
-        totalBytes = null
-        state = LinkState.Downloading(pending, previous)
-        downloadJob = scope.launch {
-            val result = downloadAudio(context, pending.source, pending.title) { done, total ->
-                scope.launch {
-                    downloadedBytes = done
-                    totalBytes = total
-                }
+    fun startDownload(next: PendingDownload, restore: LinkState) {
+        if (download is DownloadState.Active) return
+        previous = restore
+        state = restore
+        Downloads.start(context, next.source, next.title)
+    }
+
+    LaunchedEffect(download) {
+        if (download == lastDownload) return@LaunchedEffect
+        lastDownload = download
+        when (download) {
+            is DownloadState.Done -> onImported()
+            DownloadState.Idle -> previous?.let { restore ->
+                previous = null
+                state = restore
             }
-            result
-                .onSuccess { onImported() }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    val failure = when {
-                        error is YouTubeUnavailableException -> DownloadFailure.UNAVAILABLE
-                        error.message?.startsWith("HTTP 403") == true ||
-                            error.message?.startsWith("HTTP 410") == true -> DownloadFailure.EXPIRED
-                        else -> DownloadFailure.GENERIC
-                    }
-                    state = LinkState.DownloadFailed(pending, previous, failure)
-                }
+            else -> Unit
         }
     }
 
-    fun cancelDownload() {
-        val current = state as? LinkState.Downloading ?: return
-        downloadJob?.cancel()
-        downloadJob = null
-        state = current.previous
-    }
-
-    val busy = state is LinkState.Inspecting || state is LinkState.Downloading
+    val busy = state is LinkState.Inspecting || download is DownloadState.Active
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -169,7 +155,7 @@ internal fun LinkImportDialog(
                             value = url,
                             onValueChange = { value ->
                                 url = value
-                                if (state !is LinkState.Downloading) state = LinkState.Idle
+                                if (download !is DownloadState.Active) state = LinkState.Idle
                             },
                             label = stringResource(R.string.med_link_url_label),
                             placeholder = stringResource(R.string.med_link_url_hint),
@@ -207,143 +193,12 @@ internal fun LinkImportDialog(
                         }
                     }
 
-                    when (val current = state) {
-                        LinkState.Idle -> {
-                            item {
-                                Text(
-                                    text = stringResource(R.string.med_link_idle_hint),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = RespiraColors.SecondaryText,
-                                )
-                            }
-                        }
-
-                        LinkState.Inspecting -> {
-                            item {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        color = RespiraColors.Aqua,
-                                        strokeWidth = 2.dp,
-                                    )
-                                    Spacer(Modifier.width(10.dp))
-                                    Text(
-                                        text = stringResource(R.string.med_link_analyzing),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = RespiraColors.SecondaryText,
-                                    )
-                                }
-                            }
-                        }
-
-                        is LinkState.Direct -> {
-                            item {
-                                LinkField(
-                                    value = current.title,
-                                    onValueChange = { title ->
-                                        state = current.copy(title = title)
-                                    },
-                                    label = stringResource(R.string.med_link_title_label),
-                                    enabled = true,
-                                )
-                            }
-                            if (current.audio.kind == AudioKind.YOUTUBE) {
-                                item {
-                                    Text(
-                                        text = stringResource(R.string.med_link_youtube_hint),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = RespiraColors.SecondaryText,
-                                    )
-                                }
-                                item {
-                                    val kind = stringResource(R.string.med_link_kind_youtube)
-                                    val duration = current.audio.durationMs
-                                        ?.takeIf { it > 0L }
-                                        ?.let { formatDuration(it) }
-                                    val size = current.audio.sizeBytes
-                                        ?.takeIf { it > 0L }
-                                        ?.let { Formatter.formatShortFileSize(context, it) }
-                                    val meta = mutableListOf<String>()
-                                    meta += kind
-                                    duration?.let { meta += it }
-                                    size?.let { meta += it }
-                                    Text(
-                                        text = meta.joinToString(" · "),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = RespiraColors.TertiaryText,
-                                    )
-                                }
-                            } else {
-                                current.audio.sizeBytes?.let { size ->
-                                    item {
-                                        Text(
-                                            text = stringResource(
-                                                R.string.med_link_size,
-                                                Formatter.formatShortFileSize(context, size),
-                                            ),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = RespiraColors.TertiaryText,
-                                        )
-                                    }
-                                }
-                            }
-                            item {
-                                PillButton(
-                                    text = stringResource(R.string.med_link_download),
-                                    onClick = {
-                                        val latest = state as? LinkState.Direct ?: current
-                                        val title = latest.title.trim()
-                                            .ifBlank { latest.audio.title }
-                                        startDownload(
-                                            PendingDownload(latest.audio.source, title),
-                                            latest,
-                                        )
-                                    },
-                                )
-                            }
-                        }
-
-                        is LinkState.Feed -> {
-                            item {
-                                Text(
-                                    text = current.feed.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = RespiraColors.Mist,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            if (current.feed.episodes.isEmpty()) {
-                                item {
-                                    Text(
-                                        text = stringResource(R.string.med_link_no_episodes),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = RespiraColors.SecondaryText,
-                                    )
-                                }
-                            } else {
-                                items(current.feed.episodes) { episode ->
-                                    FeedEpisodeRow(
-                                        episode = episode,
-                                        onDownload = {
-                                            startDownload(
-                                                PendingDownload(
-                                                    AudioSource.Direct(episode.url),
-                                                    episode.title,
-                                                ),
-                                                current,
-                                            )
-                                        },
-                                    )
-                                }
-                            }
-                        }
-
-                        is LinkState.Downloading -> {
+                    when (val current = download) {
+                        is DownloadState.Active -> {
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(
-                                        text = current.pending.title,
+                                        text = current.title,
                                         style = MaterialTheme.typography.titleMedium,
                                         color = RespiraColors.Mist,
                                         maxLines = 2,
@@ -357,10 +212,10 @@ internal fun LinkImportDialog(
                                 }
                             }
                             item {
-                                val total = totalBytes
+                                val total = current.total
                                 val fraction = total
                                     ?.takeIf { it > 0L }
-                                    ?.let { (downloadedBytes.toFloat() / it).coerceIn(0f, 1f) }
+                                    ?.let { (current.downloaded.toFloat() / it).coerceIn(0f, 1f) }
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Box(
                                         modifier = Modifier
@@ -386,11 +241,17 @@ internal fun LinkImportDialog(
                                         text = if (total != null) {
                                             stringResource(
                                                 R.string.med_link_progress,
-                                                Formatter.formatShortFileSize(context, downloadedBytes),
+                                                Formatter.formatShortFileSize(
+                                                    context,
+                                                    current.downloaded,
+                                                ),
                                                 Formatter.formatShortFileSize(context, total),
                                             )
                                         } else {
-                                            Formatter.formatShortFileSize(context, downloadedBytes)
+                                            Formatter.formatShortFileSize(
+                                                context,
+                                                current.downloaded,
+                                            )
                                         },
                                         style = MaterialTheme.typography.labelMedium,
                                         color = RespiraColors.TertiaryText,
@@ -400,12 +261,12 @@ internal fun LinkImportDialog(
                             item {
                                 GhostPill(
                                     text = stringResource(R.string.med_link_cancel),
-                                    onClick = { cancelDownload() },
+                                    onClick = { Downloads.cancel(context) },
                                 )
                             }
                         }
 
-                        is LinkState.DownloadFailed -> {
+                        is DownloadState.Failed -> {
                             item {
                                 Text(
                                     text = downloadFailureText(current.failure),
@@ -417,41 +278,172 @@ internal fun LinkImportDialog(
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     PillButton(
                                         text = stringResource(R.string.med_retry),
-                                        onClick = {
-                                            startDownload(current.pending, current.previous)
-                                        },
+                                        onClick = { Downloads.retry(context) },
                                     )
                                     GhostPill(
                                         text = stringResource(R.string.med_link_cancel),
-                                        onClick = { state = current.previous },
+                                        onClick = { Downloads.dismissFailure() },
                                     )
                                 }
                             }
                         }
 
-                        is LinkState.Failed -> {
-                            item {
-                                Text(
-                                    text = failureText(current.reason),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = RespiraColors.Rose,
-                                )
+                        else -> when (val current = state) {
+                            LinkState.Idle -> {
+                                item {
+                                    Text(
+                                        text = stringResource(R.string.med_link_idle_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = RespiraColors.SecondaryText,
+                                    )
+                                }
                             }
-                            item {
-                                PillButton(
-                                    text = stringResource(R.string.med_retry),
-                                    onClick = { analyze() },
-                                )
-                            }
-                        }
 
-                        is LinkState.Unsupported -> {
-                            item {
-                                Text(
-                                    text = unsupportedText(current.reason),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = RespiraColors.SecondaryText,
-                                )
+                            LinkState.Inspecting -> {
+                                item {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = RespiraColors.Aqua,
+                                            strokeWidth = 2.dp,
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            text = stringResource(R.string.med_link_analyzing),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = RespiraColors.SecondaryText,
+                                        )
+                                    }
+                                }
+                            }
+
+                            is LinkState.Direct -> {
+                                item {
+                                    LinkField(
+                                        value = current.title,
+                                        onValueChange = { title ->
+                                            state = current.copy(title = title)
+                                        },
+                                        label = stringResource(R.string.med_link_title_label),
+                                        enabled = true,
+                                    )
+                                }
+                                if (current.audio.kind == AudioKind.YOUTUBE) {
+                                    item {
+                                        Text(
+                                            text = stringResource(R.string.med_link_youtube_hint),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = RespiraColors.SecondaryText,
+                                        )
+                                    }
+                                    item {
+                                        val kind = stringResource(R.string.med_link_kind_youtube)
+                                        val duration = current.audio.durationMs
+                                            ?.takeIf { it > 0L }
+                                            ?.let { formatDuration(it) }
+                                        val size = current.audio.sizeBytes
+                                            ?.takeIf { it > 0L }
+                                            ?.let { Formatter.formatShortFileSize(context, it) }
+                                        val meta = mutableListOf<String>()
+                                        meta += kind
+                                        duration?.let { meta += it }
+                                        size?.let { meta += it }
+                                        Text(
+                                            text = meta.joinToString(" · "),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = RespiraColors.TertiaryText,
+                                        )
+                                    }
+                                } else {
+                                    current.audio.sizeBytes?.let { size ->
+                                        item {
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.med_link_size,
+                                                    Formatter.formatShortFileSize(context, size),
+                                                ),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = RespiraColors.TertiaryText,
+                                            )
+                                        }
+                                    }
+                                }
+                                item {
+                                    PillButton(
+                                        text = stringResource(R.string.med_link_download),
+                                        onClick = {
+                                            val latest = state as? LinkState.Direct ?: current
+                                            val title = latest.title.trim()
+                                                .ifBlank { latest.audio.title }
+                                            startDownload(
+                                                PendingDownload(latest.audio.source, title),
+                                                latest,
+                                            )
+                                        },
+                                    )
+                                }
+                            }
+
+                            is LinkState.Feed -> {
+                                item {
+                                    Text(
+                                        text = current.feed.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = RespiraColors.Mist,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                if (current.feed.episodes.isEmpty()) {
+                                    item {
+                                        Text(
+                                            text = stringResource(R.string.med_link_no_episodes),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = RespiraColors.SecondaryText,
+                                        )
+                                    }
+                                } else {
+                                    items(current.feed.episodes) { episode ->
+                                        FeedEpisodeRow(
+                                            episode = episode,
+                                            onDownload = {
+                                                startDownload(
+                                                    PendingDownload(
+                                                        AudioSource.Direct(episode.url),
+                                                        episode.title,
+                                                    ),
+                                                    current,
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+
+                            is LinkState.Failed -> {
+                                item {
+                                    Text(
+                                        text = failureText(current.reason),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = RespiraColors.Rose,
+                                    )
+                                }
+                                item {
+                                    PillButton(
+                                        text = stringResource(R.string.med_retry),
+                                        onClick = { analyze() },
+                                    )
+                                }
+                            }
+
+                            is LinkState.Unsupported -> {
+                                item {
+                                    Text(
+                                        text = unsupportedText(current.reason),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = RespiraColors.SecondaryText,
+                                    )
+                                }
                             }
                         }
                     }
@@ -574,6 +566,7 @@ private fun failureText(reason: FailureReason): String = when (reason) {
 private fun downloadFailureText(failure: DownloadFailure): String = when (failure) {
     DownloadFailure.UNAVAILABLE -> stringResource(R.string.med_link_youtube_unavailable)
     DownloadFailure.EXPIRED -> stringResource(R.string.med_link_expired)
+    DownloadFailure.TOO_LARGE -> stringResource(R.string.med_link_too_large)
     DownloadFailure.GENERIC -> stringResource(R.string.med_link_download_failed)
 }
 
@@ -597,19 +590,11 @@ private fun readClipboard(context: Context): String? {
 
 private data class PendingDownload(val source: AudioSource, val title: String)
 
-private enum class DownloadFailure { UNAVAILABLE, EXPIRED, GENERIC }
-
 private sealed interface LinkState {
     data object Idle : LinkState
     data object Inspecting : LinkState
     data class Direct(val audio: LinkInspection.Audio, val title: String) : LinkState
     data class Feed(val feed: LinkInspection.Feed) : LinkState
-    data class Downloading(val pending: PendingDownload, val previous: LinkState) : LinkState
-    data class DownloadFailed(
-        val pending: PendingDownload,
-        val previous: LinkState,
-        val failure: DownloadFailure,
-    ) : LinkState
     data class Failed(val reason: FailureReason) : LinkState
     data class Unsupported(val reason: UnsupportedReason) : LinkState
 }
