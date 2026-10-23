@@ -88,4 +88,4 @@ persists across launches.
 
 ## Status
 
-`0.1.0-alpha04` — YouTube audio import and in-app updates.
+`0.1.0-alpha06` — YouTube audio import and in-app updates.
