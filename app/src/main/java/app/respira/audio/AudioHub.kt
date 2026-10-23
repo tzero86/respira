@@ -1,6 +1,7 @@
 package app.respira.audio
 
 import android.content.Context
+import androidx.annotation.StringRes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,8 @@ data class AudioTrack(
     val subtitle: String,
     val source: TrackSource,
     val durationMs: Long = 0L,
+    @StringRes val titleRes: Int? = null,
+    @StringRes val subtitleRes: Int? = null,
 )
 
 sealed interface TrackSource {

@@ -65,4 +65,4 @@ persists across launches.
 
 ## Status
 
-`0.1.0-alpha01` — first test build for real-device feedback.
+`0.1.0-alpha02` — first test build for real-device feedback.

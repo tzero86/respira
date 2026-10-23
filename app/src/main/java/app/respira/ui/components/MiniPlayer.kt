@@ -48,6 +48,8 @@ fun MiniPlayer(modifier: Modifier = Modifier) {
         modifier = modifier,
     ) {
         track?.let { current ->
+            val titleText = current.titleRes?.let { stringResource(it) } ?: current.title
+            val subtitleText = current.subtitleRes?.let { stringResource(it) } ?: current.subtitle
             GlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -81,14 +83,14 @@ fun MiniPlayer(modifier: Modifier = Modifier) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = current.title,
+                            text = titleText,
                             style = MaterialTheme.typography.titleSmall,
                             color = Mist,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = current.subtitle,
+                            text = subtitleText,
                             style = MaterialTheme.typography.bodySmall,
                             color = SecondaryText,
                             maxLines = 1,

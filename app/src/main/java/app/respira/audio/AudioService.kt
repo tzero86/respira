@@ -172,6 +172,12 @@ class AudioService : Service() {
         channelLanguage = language
     }
 
+    private fun AudioTrack?.localizedTitle(context: Context): String? =
+        this?.let { track -> track.titleRes?.let(context::getString) ?: track.title }
+
+    private fun AudioTrack?.localizedSubtitle(context: Context): String? =
+        this?.let { track -> track.subtitleRes?.let(context::getString) ?: track.subtitle }
+
     private fun buildNotification(state: AudioState): Notification {
         val localized = localizedContext()
         ensureChannel(localized)
@@ -199,10 +205,11 @@ class AudioService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_wind)
             .setContentTitle(
-                track?.title ?: localized.getString(R.string.audio_notification_title_fallback),
+                track.localizedTitle(localized)
+                    ?: localized.getString(R.string.audio_notification_title_fallback),
             )
             .setContentText(
-                track?.subtitle
+                track.localizedSubtitle(localized)
                     ?: if (state.layers.isEmpty()) {
                         localized.getString(R.string.audio_notification_idle_text)
                     } else {
@@ -264,12 +271,12 @@ class AudioService : Service() {
             MediaMetadataCompat.Builder()
                 .putString(
                     MediaMetadataCompat.METADATA_KEY_TITLE,
-                    track?.title
+                    track.localizedTitle(localized)
                         ?: localized.getString(R.string.audio_notification_title_fallback),
                 )
                 .putString(
                     MediaMetadataCompat.METADATA_KEY_ARTIST,
-                    track?.subtitle
+                    track.localizedSubtitle(localized)
                         ?: localized.getString(R.string.audio_notification_ambience_text),
                 )
                 .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, state.durationMs)

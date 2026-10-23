@@ -27,7 +27,7 @@
     <string name="breathe_seconds_suffix">s</string>
 
     <string name="breathe_length_minutes">%1$d min</string>
-    <string name="breathe_length_open">Abierta</string>
+    <string name="breathe_length_open">Libre</string>
     <string name="breathe_session_minutes_phrase">%1$d minutos de sesión</string>
     <string name="breathe_session_open_phrase">Sesión sin límite</string>
 

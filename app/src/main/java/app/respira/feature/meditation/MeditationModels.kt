@@ -91,6 +91,8 @@ internal fun BundledMeditation.toMeditation(context: Context): MeditationTrack =
         subtitle = context.getString(subtitleRes),
         source = TrackSource.Bundled(rawResId),
         durationMs = durationMs,
+        titleRes = titleRes,
+        subtitleRes = subtitleRes,
     ),
     icon = icon,
     accent = accent,
