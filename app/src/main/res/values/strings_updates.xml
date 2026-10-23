@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_section">Actualización</string>
+    <string name="update_available_title">Versión %1$s disponible</string>
+    <string name="update_available_body">Una nueva entrega de Respira está lista. Tus datos y sonidos se conservan.</string>
+    <string name="update_notes_title">Novedades</string>
+    <string name="update_download">Descargar</string>
+    <string name="update_downloading">Descargando…</string>
+    <string name="update_progress">Descargando… %1$d %%</string>
+    <string name="update_cancel">Cancelar</string>
+    <string name="update_install">Instalar</string>
+    <string name="update_retry">Reintentar</string>
+    <string name="update_open_browser">Abrir en el navegador</string>
+    <string name="update_later">Más tarde</string>
+    <string name="update_check">Buscar actualización</string>
+    <string name="update_checking">Buscando…</string>
+    <string name="update_latest">Estás al día</string>
+    <string name="update_error">No se pudo completar. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="update_permission_hint">Android puede pedirte permiso para instalar apps desde Respira.</string>
+</resources>

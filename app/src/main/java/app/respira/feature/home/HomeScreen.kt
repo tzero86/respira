@@ -1,5 +1,6 @@
 package app.respira.feature.home
 
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -31,8 +32,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,11 +45,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.respira.BuildConfig
 import app.respira.R
+import app.respira.feature.updates.CheckOutcome
+import app.respira.feature.updates.UpdateBanner
+import app.respira.feature.updates.UpdateCenter
+import app.respira.feature.updates.UpdateDialog
 import app.respira.ui.components.GlassCard
 import app.respira.ui.components.IconBadge
 import app.respira.ui.components.LanguageButton
@@ -55,6 +67,7 @@ import app.respira.ui.theme.RespiraColors.Aqua
 import app.respira.ui.theme.RespiraColors.Mist
 import app.respira.ui.theme.RespiraColors.SecondaryText
 import app.respira.ui.theme.RespiraColors.TertiaryText
+import kotlinx.coroutines.launch
 import java.time.LocalTime
 
 @Composable
@@ -64,6 +77,36 @@ fun HomeScreen(
     onAmbience: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    var dialogOpen by remember { mutableStateOf(false) }
+    val update by UpdateCenter.available.collectAsStateWithLifecycle()
+    val latestMessage = stringResource(R.string.update_latest)
+
+    LaunchedEffect(Unit) {
+        UpdateCenter.check(context)
+    }
+
+    fun checkManually() {
+        if (checking) return
+        checking = true
+        scope.launch {
+            try {
+                when (UpdateCenter.check(context, manual = true)) {
+                    CheckOutcome.UP_TO_DATE -> {
+                        dialogOpen = false
+                        Toast.makeText(context, latestMessage, Toast.LENGTH_SHORT).show()
+                    }
+                    CheckOutcome.UPDATE, CheckOutcome.FAILED -> dialogOpen = true
+                    CheckOutcome.SKIPPED -> Unit
+                }
+            } finally {
+                checking = false
+            }
+        }
+    }
+
     val greetingRes = remember {
         when (LocalTime.now().hour) {
             in 5..11 -> R.string.home_greeting_morning
@@ -130,12 +173,45 @@ fun HomeScreen(
             onClick = onAmbience,
         )
 
+        if (update != null) {
+            Spacer(Modifier.height(22.dp))
+            UpdateBanner(onOpen = { dialogOpen = true })
+        }
+
         Spacer(Modifier.height(26.dp))
         Text(
             text = stringResource(R.string.home_footer),
             style = MaterialTheme.typography.bodySmall,
             color = TertiaryText,
         )
+
+        Spacer(Modifier.height(18.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "v${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.labelSmall,
+                color = TertiaryText,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = stringResource(
+                    if (checking) R.string.update_checking else R.string.update_check,
+                ),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .clickable(enabled = !checking) { checkManually() }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (checking) TertiaryText else Aqua.copy(alpha = 0.85f),
+            )
+        }
+    }
+
+    if (dialogOpen) {
+        UpdateDialog(onDismiss = { dialogOpen = false })
     }
 }
 

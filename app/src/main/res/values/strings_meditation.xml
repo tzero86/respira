@@ -58,7 +58,10 @@
     <string name="med_link_episode">Episodio %1$d</string>
     <string name="med_link_close">Cerrar</string>
     <string name="med_link_progress">%1$s de %2$s</string>
-    <string name="med_link_youtube">YouTube no permite que otras apps descarguen su audio. Consigue el audio en la web del creador o en su podcast y compártelo con Respira.</string>
+    <string name="med_link_youtube">Es una lista: abre un video y pega su enlace.</string>
+    <string name="med_link_kind_youtube">YouTube</string>
+    <string name="med_link_youtube_hint">Se descargará solo la pista de audio.</string>
+    <string name="med_link_youtube_unavailable">Ese video necesita sesión o no está disponible.</string>
     <string name="med_link_not_audio">Este enlace no apunta a un audio ni a un podcast.</string>
     <string name="med_link_invalid_url">Ese enlace no parece válido. Revísalo e inténtalo de nuevo.</string>
     <string name="med_link_network">No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.</string>

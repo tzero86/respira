@@ -94,7 +94,7 @@ internal fun LinkImportDialog(
         totalBytes = null
         state = LinkState.Downloading(pending, previous)
         downloadJob = scope.launch {
-            val result = downloadAudio(context, pending.url, pending.title) { done, total ->
+            val result = downloadAudio(context, pending.source, pending.title) { done, total ->
                 scope.launch {
                     downloadedBytes = done
                     totalBytes = total
@@ -241,16 +241,44 @@ internal fun LinkImportDialog(
                                     enabled = true,
                                 )
                             }
-                            current.audio.sizeBytes?.let { size ->
+                            if (current.audio.kind == AudioKind.YOUTUBE) {
                                 item {
                                     Text(
-                                        text = stringResource(
-                                            R.string.med_link_size,
-                                            Formatter.formatShortFileSize(context, size),
-                                        ),
+                                        text = stringResource(R.string.med_link_youtube_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = RespiraColors.SecondaryText,
+                                    )
+                                }
+                                item {
+                                    val kind = stringResource(R.string.med_link_kind_youtube)
+                                    val duration = current.audio.durationMs
+                                        ?.takeIf { it > 0L }
+                                        ?.let { formatDuration(it) }
+                                    val size = current.audio.sizeBytes
+                                        ?.takeIf { it > 0L }
+                                        ?.let { Formatter.formatShortFileSize(context, it) }
+                                    val meta = mutableListOf<String>()
+                                    meta += kind
+                                    duration?.let { meta += it }
+                                    size?.let { meta += it }
+                                    Text(
+                                        text = meta.joinToString(" · "),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = RespiraColors.TertiaryText,
                                     )
+                                }
+                            } else {
+                                current.audio.sizeBytes?.let { size ->
+                                    item {
+                                        Text(
+                                            text = stringResource(
+                                                R.string.med_link_size,
+                                                Formatter.formatShortFileSize(context, size),
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = RespiraColors.TertiaryText,
+                                        )
+                                    }
                                 }
                             }
                             item {
@@ -261,7 +289,7 @@ internal fun LinkImportDialog(
                                         val title = latest.title.trim()
                                             .ifBlank { latest.audio.title }
                                         startDownload(
-                                            PendingDownload(latest.audio.url, title),
+                                            PendingDownload(latest.audio.source, title),
                                             latest,
                                         )
                                     },
@@ -293,7 +321,10 @@ internal fun LinkImportDialog(
                                         episode = episode,
                                         onDownload = {
                                             startDownload(
-                                                PendingDownload(episode.url, episode.title),
+                                                PendingDownload(
+                                                    AudioSource.Direct(episode.url),
+                                                    episode.title,
+                                                ),
                                                 current,
                                             )
                                         },
@@ -536,6 +567,7 @@ private fun failureText(reason: FailureReason): String = when (reason) {
 @Composable
 private fun unsupportedText(reason: UnsupportedReason): String = when (reason) {
     UnsupportedReason.YOUTUBE -> stringResource(R.string.med_link_youtube)
+    UnsupportedReason.YOUTUBE_UNAVAILABLE -> stringResource(R.string.med_link_youtube_unavailable)
     UnsupportedReason.NOT_AUDIO -> stringResource(R.string.med_link_not_audio)
     UnsupportedReason.INVALID_URL -> stringResource(R.string.med_link_invalid_url)
 }
@@ -550,7 +582,7 @@ private fun readClipboard(context: Context): String? {
     }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
 }
 
-private data class PendingDownload(val url: String, val title: String)
+private data class PendingDownload(val source: AudioSource, val title: String)
 
 private sealed interface LinkState {
     data object Idle : LinkState

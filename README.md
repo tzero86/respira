@@ -2,7 +2,8 @@
 
 A calm Android app for guided breathing, meditation listening, and a mixable ambience
 board. Spanish by default, English available in-app. No accounts, no ads. Everything
-plays offline; the network is used only when you import audio from a link.
+plays offline; the network is used only when you import audio from a link or check for
+updates.
 
 ## Features
 
@@ -10,12 +11,15 @@ plays offline; the network is used only when you import audio from a link.
   a breathing orb driven by a drift-free clock, haptics and soft chimes, 1/3/5/10 min
   or open sessions.
 - **Meditate** — five original ambient tracks, plus your own audio through the system
-  file picker, a direct audio/podcast link, or by sharing an audio file into Respira.
-  Sleep timer shared with the soundscapes.
+  file picker, a direct audio/podcast/YouTube link, or by sharing an audio file into
+  Respira. Sleep timer shared with the soundscapes.
 - **Soundscapes** — ten seamless nature loops (rain, storm, wind, stream, ocean, fire,
   night forest, birds, deep hum) mixed live, six presets, per-layer and master volume,
   sleep timer.
 - Background playback through a foreground media service with a media notification.
+- **Self-updates** — release builds poll the GitHub releases feed, download the newer
+  APK with progress, verify package, version and signing certificate, and hand it to
+  the system installer. A manual check lives in the Home footer.
 
 ## Importing audio
 
@@ -23,16 +27,17 @@ Meditate accepts audio four ways:
 
 1. **Built-in tracks** — the five generated pieces.
 2. **From device** — the system file picker, with persisted read grants.
-3. **From a link** — paste a direct audio URL (MP3, M4A, OGG, Opus, WAV, FLAC, AAC) or a
-   podcast RSS/Atom feed, pick an episode, and the app downloads it into private app
-   storage with progress, cancellation and a 300 MB cap. The title can be edited before
-   downloading.
+3. **From a link** — paste a direct audio URL (MP3, M4A, OGG, Opus, WAV, FLAC, AAC), a
+   YouTube video (watch, `youtu.be`, Shorts, embed, live) or a podcast RSS/Atom feed,
+   pick an episode, and the app downloads it into private app storage with progress,
+   cancellation and a 300 MB cap. The title can be edited before downloading.
 4. **Share** — share an audio file from any app into Respira; it is copied into the
    library and appears on the Meditate screen.
 
-YouTube links are intentionally not supported: YouTube's terms do not allow other apps
-to extract audio, and an on-device extractor would be brittle. If a video's audio is
-downloadable from the creator's site or podcast, import it that way or share the file.
+YouTube extraction is done on-device against the player API with the Android client,
+so no third-party service is involved: the title, duration and best audio track are
+resolved from the video, and only that audio is downloaded. Videos that need sign-in
+or are region-locked say so; playlist links ask you to open a single video.
 
 ## Build
 
@@ -83,4 +88,4 @@ persists across launches.
 
 ## Status
 
-`0.1.0-alpha03` — link and share import for meditation audio.
+`0.1.0-alpha04` — YouTube audio import and in-app updates.

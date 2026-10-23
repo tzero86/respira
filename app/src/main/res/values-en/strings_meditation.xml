@@ -58,7 +58,10 @@
     <string name="med_link_episode">Episode %1$d</string>
     <string name="med_link_close">Close</string>
     <string name="med_link_progress">%1$s of %2$s</string>
-    <string name="med_link_youtube">YouTube doesn\'t allow other apps to download its audio. Get the audio from the creator\'s website or podcast, then share it with Respira.</string>
+    <string name="med_link_youtube">That is a playlist: open a video and paste its link.</string>
+    <string name="med_link_kind_youtube">YouTube</string>
+    <string name="med_link_youtube_hint">Only the audio track will be downloaded.</string>
+    <string name="med_link_youtube_unavailable">That video needs sign-in or is unavailable.</string>
     <string name="med_link_not_audio">That link doesn\'t point to audio or a podcast.</string>
     <string name="med_link_invalid_url">That link doesn\'t look valid. Check it and try again.</string>
     <string name="med_link_network">Couldn\'t connect. Check your connection and try again.</string>
