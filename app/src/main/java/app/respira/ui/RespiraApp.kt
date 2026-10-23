@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import app.respira.feature.ambience.AmbienceScreen
 import app.respira.feature.breathe.BreatheScreen
@@ -32,6 +34,13 @@ fun RespiraApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route
     val showBar = route == Routes.Home || route == Routes.Meditate || route == Routes.Ambience
+    val navRequest by AppNavigation.request.collectAsStateWithLifecycle()
+
+    LaunchedEffect(navRequest) {
+        val target = navRequest ?: return@LaunchedEffect
+        navController.navigateTab(target)
+        AppNavigation.consume()
+    }
 
     AuroraBackdrop {
         Column(Modifier.fillMaxSize()) {

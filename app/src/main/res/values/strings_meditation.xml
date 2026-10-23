@@ -41,4 +41,36 @@
     <string name="med_track_deep_rest_subtitle">Calidez baja para dormir</string>
     <string name="med_track_ocean_breath">Respiración marina</string>
     <string name="med_track_ocean_breath_subtitle">Olas y una melodía tranquila</string>
+
+    <string name="med_add_from_link">Añadir desde un enlace</string>
+    <string name="med_link_url_label">Enlace</string>
+    <string name="med_link_url_hint">https://…</string>
+    <string name="med_link_paste">Pegar</string>
+    <string name="med_link_analyze">Analizar</string>
+    <string name="med_link_analyzing">Analizando…</string>
+    <string name="med_link_idle_hint">Pega un enlace directo a un audio o a un feed de podcast.</string>
+    <string name="med_link_title_label">Título</string>
+    <string name="med_link_size">Tamaño: %1$s</string>
+    <string name="med_link_download">Descargar</string>
+    <string name="med_link_downloading">Descargando…</string>
+    <string name="med_link_cancel">Cancelar</string>
+    <string name="med_link_no_episodes">Este feed no tiene episodios de audio.</string>
+    <string name="med_link_episode">Episodio %1$d</string>
+    <string name="med_link_close">Cerrar</string>
+    <string name="med_link_progress">%1$s de %2$s</string>
+    <string name="med_link_youtube">YouTube no permite que otras apps descarguen su audio. Consigue el audio en la web del creador o en su podcast y compártelo con Respira.</string>
+    <string name="med_link_not_audio">Este enlace no apunta a un audio ni a un podcast.</string>
+    <string name="med_link_invalid_url">Ese enlace no parece válido. Revísalo e inténtalo de nuevo.</string>
+    <string name="med_link_network">No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="med_link_timeout">La conexión tardó demasiado. Inténtalo de nuevo.</string>
+    <string name="med_link_too_large">Ese archivo es demasiado grande (máximo 300 MB).</string>
+    <string name="med_link_invalid_response">No se pudo leer ese contenido. Prueba con otro enlace.</string>
+    <string name="med_link_http_error">El enlace respondió con un error. Prueba con otro.</string>
+    <string name="med_link_download_failed">No se pudo descargar el audio. Inténtalo de nuevo.</string>
+    <string name="med_from_link">Desde un enlace</string>
+    <string name="med_shared">Compartida</string>
+
+    <string name="med_share_importing">Importando a Respira…</string>
+    <string name="med_share_added">Añadida: %1$s</string>
+    <string name="med_share_failed">No se pudo importar el audio.</string>
 </resources>

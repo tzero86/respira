@@ -61,6 +61,8 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
     var importFailed by remember { mutableStateOf(false) }
     var failedTrackId by remember { mutableStateOf<String?>(null) }
     var showPlayer by rememberSaveable { mutableStateOf(false) }
+    var showLinkDialog by rememberSaveable { mutableStateOf(false) }
+    val libraryVersion by LibraryEvents.version.collectAsStateWithLifecycle()
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
@@ -105,6 +107,10 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(state.track) {
         if (state.track == null) showPlayer = false
+    }
+
+    LaunchedEffect(libraryVersion) {
+        library = MeditationLibrary.load(context)
     }
 
     LazyColumn(
@@ -169,11 +175,16 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
 
         if (library.isEmpty()) {
             item {
-                LibraryEmpty(onAdd = openPicker)
+                LibraryEmpty(
+                    onAddDevice = openPicker,
+                    onAddLink = { showLinkDialog = true },
+                )
             }
         } else {
             items(library, key = { it.id }) { entry ->
-                val meditation = remember(entry.id, entry.uri) { entry.toMeditation(context) }
+                val meditation = remember(entry.id, entry.uri, entry.origin) {
+                    entry.toMeditation(context)
+                }
                 val active = state.track?.id == meditation.track.id
                 val error = if (failedTrackId == entry.id) {
                     stringResource(R.string.med_error_unavailable)
@@ -192,18 +203,24 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
                 )
             }
             item {
-                GhostPill(
-                    text = stringResource(R.string.med_add_from_device),
-                    onClick = openPicker,
-                    leading = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_plus),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = RespiraColors.Aqua,
-                        )
-                    },
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GhostPill(
+                        text = stringResource(R.string.med_add_from_device),
+                        onClick = openPicker,
+                        leading = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_plus),
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = RespiraColors.Aqua,
+                            )
+                        },
+                    )
+                    GhostPill(
+                        text = stringResource(R.string.med_add_from_link),
+                        onClick = { showLinkDialog = true },
+                    )
+                }
             }
         }
     }
@@ -217,6 +234,16 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
                 onClose = { showPlayer = false },
             )
         }
+    }
+
+    if (showLinkDialog) {
+        LinkImportDialog(
+            onDismiss = { showLinkDialog = false },
+            onImported = {
+                showLinkDialog = false
+                LibraryEvents.bump()
+            },
+        )
     }
 }
 
@@ -400,7 +427,10 @@ private fun PlayingIndicator(playing: Boolean) {
 }
 
 @Composable
-private fun LibraryEmpty(onAdd: () -> Unit) {
+private fun LibraryEmpty(
+    onAddDevice: () -> Unit,
+    onAddLink: () -> Unit,
+) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         topTint = RespiraColors.Indigo,
@@ -425,7 +455,7 @@ private fun LibraryEmpty(onAdd: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         PillButton(
             text = stringResource(R.string.med_add_from_device),
-            onClick = onAdd,
+            onClick = onAddDevice,
             leading = {
                 Icon(
                     painter = painterResource(R.drawable.ic_plus),
@@ -434,6 +464,11 @@ private fun LibraryEmpty(onAdd: () -> Unit) {
                     tint = RespiraColors.Ink,
                 )
             },
+        )
+        Spacer(Modifier.height(8.dp))
+        GhostPill(
+            text = stringResource(R.string.med_add_from_link),
+            onClick = onAddLink,
         )
     }
 }

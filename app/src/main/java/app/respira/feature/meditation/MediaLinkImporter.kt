@@ -1,0 +1,663 @@
+package app.respira.feature.meditation
+
+import android.content.Context
+import android.util.Log
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.util.Xml
+import app.respira.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import org.xmlpull.v1.XmlPullParser
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
+import java.net.URL
+import java.net.URLDecoder
+import java.util.UUID
+import java.util.zip.GZIPInputStream
+import kotlin.coroutines.cancellation.CancellationException
+
+internal enum class UnsupportedReason { YOUTUBE, NOT_AUDIO, INVALID_URL }
+
+internal enum class FailureReason { NETWORK, TIMEOUT, TOO_LARGE, INVALID_RESPONSE, HTTP_ERROR }
+
+internal data class FeedEpisode(
+    val title: String,
+    val url: String,
+    val durationMs: Long?,
+    val sizeBytes: Long?,
+)
+
+internal sealed interface LinkInspection {
+    data class Audio(val url: String, val title: String, val sizeBytes: Long?) : LinkInspection
+    data class Feed(val url: String, val title: String, val episodes: List<FeedEpisode>) : LinkInspection
+    data class Unsupported(val reason: UnsupportedReason) : LinkInspection
+    data class Failure(val reason: FailureReason) : LinkInspection
+}
+
+private const val USER_AGENT = "Respira/0.1 (Android)"
+private const val CONNECT_TIMEOUT_MS = 20_000
+private const val READ_TIMEOUT_MS = 20_000
+private const val MAX_REDIRECTS = 5
+private const val MAX_FEED_BYTES = 3 * 1024 * 1024
+private const val MAX_DOWNLOAD_BYTES = 300L * 1024 * 1024
+private const val MAX_EPISODES = 200
+private const val COPY_BUFFER = 64 * 1024
+
+private val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "ogg", "opus", "wav", "flac")
+
+private val ACCEPT_HEADER =
+    "audio/*, application/ogg, application/rss+xml, application/atom+xml, " +
+        "application/xml, text/xml, */*;q=0.1"
+
+private class FeedTooLargeException : IOException("Feed exceeds 3 MB")
+private class TooManyRedirectsException : IOException("Too many redirects")
+private class YouTubeLinkException : IOException("YouTube links are not supported")
+private class DownloadTooLargeException : IOException("Download exceeds 300 MB")
+
+internal suspend fun inspectLink(context: Context, rawUrl: String): LinkInspection =
+    withContext(Dispatchers.IO) {
+        val url = normalizeUrl(rawUrl)
+            ?: return@withContext LinkInspection.Unsupported(UnsupportedReason.INVALID_URL)
+        if (isYouTubeHost(url.host)) {
+            return@withContext LinkInspection.Unsupported(UnsupportedReason.YOUTUBE)
+        }
+        try {
+            inspectUrl(context, url)
+        } catch (error: YouTubeLinkException) {
+            LinkInspection.Unsupported(UnsupportedReason.YOUTUBE)
+        } catch (error: SocketTimeoutException) {
+            LinkInspection.Failure(FailureReason.TIMEOUT)
+        } catch (error: FeedTooLargeException) {
+            LinkInspection.Failure(FailureReason.TOO_LARGE)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: IOException) {
+            LinkInspection.Failure(FailureReason.NETWORK)
+        } catch (error: Exception) {
+            LinkInspection.Failure(FailureReason.INVALID_RESPONSE)
+        }
+    }
+
+internal suspend fun downloadAudio(
+    context: Context,
+    url: String,
+    title: String,
+    onProgress: (downloaded: Long, total: Long?) -> Unit,
+): Result<LibraryTrack> = withContext(Dispatchers.IO) {
+    var partFile: File? = null
+    var targetFile: File? = null
+    try {
+        val parsed = normalizeUrl(url) ?: throw IOException("Invalid audio URL")
+        if (isYouTubeHost(parsed.host)) throw YouTubeLinkException()
+
+        val (connection, finalUrl) = openFollowingRedirects(parsed)
+        try {
+            val code = connection.responseCode
+            if (code !in 200..299) throw IOException("HTTP $code")
+
+            val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase()
+            val disposition = connection.getHeaderField("Content-Disposition")
+            val extension = extensionFor(
+                contentType = contentType,
+                path = finalUrl.path,
+                fileName = fileNameFromDisposition(disposition),
+            ) ?: "mp3"
+            val displayTitle = title.trim().ifBlank { context.getString(R.string.med_imported_track) }
+
+            val directory = MeditationLibrary.libraryDir(context).apply { mkdirs() }
+            val fileName = "${sanitizeFileName(displayTitle)}-${UUID.randomUUID().toString().take(8)}.$extension"
+            val target = File(directory, fileName)
+            val part = File(directory, "$fileName.part")
+            partFile = part
+            targetFile = target
+
+            val compressed = connection.contentEncoding?.equals("gzip", ignoreCase = true) == true
+            val total = if (compressed) null else connection.contentLengthLong.takeIf { it > 0L }
+            if (total != null && total > MAX_DOWNLOAD_BYTES) throw DownloadTooLargeException()
+
+            onProgress(0L, total)
+            streamFor(connection).use { input ->
+                FileOutputStream(part).use { output ->
+                    copyDownload(input, output, total, onProgress)
+                }
+            }
+
+            if (!part.renameTo(target)) {
+                part.copyTo(target, overwrite = true)
+                part.delete()
+            }
+            partFile = null
+
+            val track = MeditationLibrary.addTrack(
+                context = context,
+                title = displayTitle,
+                uri = Uri.fromFile(target).toString(),
+                origin = ORIGIN_LINK,
+            )
+            targetFile = null
+            Result.success(track)
+        } finally {
+            connection.disconnect()
+        }
+    } catch (error: CancellationException) {
+        partFile?.delete()
+        targetFile?.delete()
+        throw error
+    } catch (error: Exception) {
+        partFile?.delete()
+        targetFile?.delete()
+        Result.failure(error)
+    }
+}
+
+internal suspend fun importSharedAudio(
+    context: Context,
+    uri: Uri,
+    mimeType: String?,
+): LibraryTrack? = withContext(Dispatchers.IO) {
+    var partFile: File? = null
+    var targetFile: File? = null
+    try {
+        val resolver = context.contentResolver
+        val resolvedType = runCatching { resolver.getType(uri) }.getOrNull()
+            ?.takeIf { it.isNotBlank() } ?: mimeType
+        val displayName = queryDisplayName(context, uri)
+        val title = displayName
+            ?.substringBeforeLast('.')
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: context.getString(R.string.med_imported_track)
+        val extension = extensionFor(
+            contentType = resolvedType,
+            path = uri.lastPathSegment,
+            fileName = displayName,
+        ) ?: "mp3"
+
+        val directory = MeditationLibrary.libraryDir(context).apply { mkdirs() }
+        val fileName = "${sanitizeFileName(title)}-${UUID.randomUUID().toString().take(8)}.$extension"
+        val target = File(directory, fileName)
+        val part = File(directory, "$fileName.part")
+        partFile = part
+        targetFile = target
+
+        val source = resolver.openInputStream(uri) ?: return@withContext null
+        source.use { input ->
+            FileOutputStream(part).use { output -> copyLimited(input, output) }
+        }
+
+        if (!part.renameTo(target)) {
+            part.copyTo(target, overwrite = true)
+            part.delete()
+        }
+        partFile = null
+
+        val track = MeditationLibrary.addTrack(
+            context = context,
+            title = title,
+            uri = Uri.fromFile(target).toString(),
+            origin = ORIGIN_SHARED,
+        )
+        targetFile = null
+        track
+    } catch (error: CancellationException) {
+        partFile?.delete()
+        targetFile?.delete()
+        throw error
+    } catch (error: Exception) {
+        Log.w("MediaLinkImporter", "Shared audio import failed", error)
+        partFile?.delete()
+        targetFile?.delete()
+        null
+    }
+}
+
+private fun inspectUrl(context: Context, start: URL): LinkInspection {
+    val (connection, finalUrl) = openFollowingRedirects(start)
+    try {
+        val code = connection.responseCode
+        if (code !in 200..299) return LinkInspection.Failure(FailureReason.HTTP_ERROR)
+
+        val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase()
+        val path = finalUrl.path.orEmpty()
+        val disposition = connection.getHeaderField("Content-Disposition")
+
+        if (isAudioContentType(contentType) || hasAudioExtension(path)) {
+            return LinkInspection.Audio(
+                url = finalUrl.toString(),
+                title = titleForAudio(context, finalUrl, disposition),
+                sizeBytes = connection.contentLengthLong.takeIf { it > 0L },
+            )
+        }
+
+        if (isFeedCandidate(contentType, path)) {
+            if (connection.contentLengthLong > MAX_FEED_BYTES) throw FeedTooLargeException()
+            val bytes = streamFor(connection).use { input ->
+                readLimited(input, MAX_FEED_BYTES)
+            }
+            val parsed = parseFeed(context, finalUrl, bytes)
+                ?: return LinkInspection.Unsupported(UnsupportedReason.NOT_AUDIO)
+            return LinkInspection.Feed(
+                url = finalUrl.toString(),
+                title = parsed.title,
+                episodes = parsed.episodes,
+            )
+        }
+
+        return LinkInspection.Unsupported(UnsupportedReason.NOT_AUDIO)
+    } finally {
+        connection.disconnect()
+    }
+}
+
+private fun normalizeUrl(raw: String): URL? {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return null
+    if (!trimmed.contains("://") &&
+        Regex("^[a-zA-Z][a-zA-Z0-9+.-]*:(?!//)(?!\\d)").containsMatchIn(trimmed)
+    ) {
+        return null
+    }
+    val candidate = if (trimmed.contains("://")) trimmed else "https://$trimmed"
+    val url = runCatching { URL(candidate) }.getOrNull() ?: return null
+    if (url.protocol.lowercase() !in setOf("http", "https")) return null
+    if (url.host.isNullOrBlank()) return null
+    return url
+}
+
+private fun openFollowingRedirects(start: URL): Pair<HttpURLConnection, URL> {
+    var current = start
+    var redirects = 0
+    while (true) {
+        val connection = current.openConnection() as? HttpURLConnection
+            ?: throw IOException("Not an HTTP connection")
+        connection.instanceFollowRedirects = false
+        connection.connectTimeout = CONNECT_TIMEOUT_MS
+        connection.readTimeout = READ_TIMEOUT_MS
+        connection.requestMethod = "GET"
+        connection.setRequestProperty("User-Agent", USER_AGENT)
+        connection.setRequestProperty("Accept", ACCEPT_HEADER)
+        connection.setRequestProperty("Accept-Encoding", "identity")
+
+        val code = connection.responseCode
+        if (code in 300..399) {
+            val location = connection.getHeaderField("Location")
+            connection.disconnect()
+            if (location.isNullOrBlank()) throw IOException("Redirect without location")
+            if (redirects >= MAX_REDIRECTS) throw TooManyRedirectsException()
+            val next = runCatching { URL(current, location) }.getOrNull()
+                ?: throw IOException("Invalid redirect")
+            if (next.protocol.lowercase() !in setOf("http", "https")) {
+                throw IOException("Invalid redirect scheme")
+            }
+            if (isYouTubeHost(next.host)) throw YouTubeLinkException()
+            current = next
+            redirects += 1
+            continue
+        }
+        return connection to current
+    }
+}
+
+private fun isYouTubeHost(host: String?): Boolean {
+    val value = host?.lowercase() ?: return false
+    return value == "youtu.be" ||
+        value == "youtube.com" ||
+        value.endsWith(".youtube.com") ||
+        value == "youtube-nocookie.com" ||
+        value.endsWith(".youtube-nocookie.com")
+}
+
+private fun isAudioContentType(contentType: String?): Boolean {
+    val value = contentType ?: return false
+    return value.startsWith("audio/") ||
+        value == "application/ogg" ||
+        value == "application/x-ogg"
+}
+
+private fun hasAudioExtension(value: String?): Boolean {
+    val name = value ?: return false
+    val extension = name.substringAfterLast('.', "").lowercase().substringBefore('?')
+    return extension in AUDIO_EXTENSIONS
+}
+
+private fun isFeedCandidate(contentType: String?, path: String): Boolean {
+    if (contentType != null && contentType in setOf(
+            "application/rss+xml",
+            "application/atom+xml",
+            "application/xml",
+            "text/xml",
+        )
+    ) {
+        return true
+    }
+    val lower = path.lowercase()
+    return lower.endsWith(".rss") || lower.endsWith(".atom") || lower.endsWith(".xml")
+}
+
+private fun streamFor(connection: HttpURLConnection): InputStream {
+    val stream = connection.inputStream
+    return if (connection.contentEncoding?.equals("gzip", ignoreCase = true) == true) {
+        GZIPInputStream(stream)
+    } else {
+        stream
+    }
+}
+
+private fun readLimited(input: InputStream, limit: Int): ByteArray {
+    val output = ByteArrayOutputStream()
+    val buffer = ByteArray(16 * 1024)
+    while (true) {
+        val read = input.read(buffer)
+        if (read < 0) break
+        if (output.size() + read > limit) throw FeedTooLargeException()
+        output.write(buffer, 0, read)
+    }
+    return output.toByteArray()
+}
+
+private suspend fun copyDownload(
+    input: InputStream,
+    output: OutputStream,
+    total: Long?,
+    onProgress: (downloaded: Long, total: Long?) -> Unit,
+) {
+    val buffer = ByteArray(COPY_BUFFER)
+    var downloaded = 0L
+    var lastReported = 0L
+    while (true) {
+        currentCoroutineContext().ensureActive()
+        val read = input.read(buffer)
+        if (read < 0) break
+        downloaded += read
+        if (downloaded > MAX_DOWNLOAD_BYTES) throw DownloadTooLargeException()
+        output.write(buffer, 0, read)
+        if (downloaded - lastReported >= 256 * 1024L || (total != null && downloaded >= total)) {
+            onProgress(downloaded, total)
+            lastReported = downloaded
+        }
+    }
+    onProgress(downloaded, total ?: downloaded)
+}
+
+private suspend fun copyLimited(input: InputStream, output: OutputStream) {
+    val buffer = ByteArray(COPY_BUFFER)
+    var written = 0L
+    while (true) {
+        currentCoroutineContext().ensureActive()
+        val read = input.read(buffer)
+        if (read < 0) break
+        written += read
+        if (written > MAX_DOWNLOAD_BYTES) throw DownloadTooLargeException()
+        output.write(buffer, 0, read)
+    }
+}
+
+private fun titleForAudio(context: Context, url: URL, disposition: String?): String {
+    val raw = fileNameFromDisposition(disposition)
+        ?.takeIf { it.isNotBlank() }
+        ?: url.path?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+    val decoded = raw?.let { value ->
+        runCatching { URLDecoder.decode(value, "UTF-8") }.getOrDefault(value)
+    }
+    val title = decoded?.let { stripExtension(it) }?.trim().orEmpty()
+    return title.ifBlank { context.getString(R.string.med_imported_track) }
+}
+
+private fun fileNameFromDisposition(header: String?): String? {
+    if (header.isNullOrBlank()) return null
+    val extended = Regex("(?i)filename\\*\\s*=\\s*([^;]+)")
+        .find(header)
+        ?.groupValues
+        ?.get(1)
+        ?.trim()
+    if (!extended.isNullOrEmpty()) {
+        val value = extended.trim('"')
+        val parts = value.split('\'', limit = 3)
+        val encoded = if (parts.size == 3) parts[2] else value
+        val charset = if (parts.size == 3) parts[0].ifBlank { "UTF-8" } else "UTF-8"
+        val decoded = runCatching { URLDecoder.decode(encoded, charset) }.getOrNull()
+        if (!decoded.isNullOrBlank()) return decoded
+    }
+    val quoted = Regex("(?i)filename\\s*=\\s*\"([^\"]*)\"")
+        .find(header)
+        ?.groupValues
+        ?.get(1)
+    if (!quoted.isNullOrBlank()) return quoted
+    return Regex("(?i)filename\\s*=\\s*([^;]+)")
+        .find(header)
+        ?.groupValues
+        ?.get(1)
+        ?.trim()
+        ?.trim('"')
+        ?.takeIf { it.isNotBlank() }
+}
+
+private fun stripExtension(value: String): String {
+    val dot = value.lastIndexOf('.')
+    return if (dot > 0) value.substring(0, dot) else value
+}
+
+private fun extensionFor(contentType: String?, path: String?, fileName: String?): String? {
+    val type = contentType?.substringBefore(';')?.trim()?.lowercase()
+    val byType = when {
+        type == null -> null
+        type == "audio/mpeg" || type == "audio/mp3" -> "mp3"
+        type == "audio/mp4" || type == "audio/x-m4a" || type == "audio/m4a" -> "m4a"
+        type == "audio/aac" -> "aac"
+        type == "audio/ogg" || type == "application/ogg" || type == "application/x-ogg" -> "ogg"
+        type == "audio/opus" -> "opus"
+        type == "audio/wav" || type == "audio/x-wav" || type == "audio/wave" -> "wav"
+        type == "audio/flac" || type == "audio/x-flac" -> "flac"
+        type.startsWith("audio/") -> type.substringAfter('/').substringBefore('+')
+        else -> null
+    }
+    if (byType != null && byType in AUDIO_EXTENSIONS) return byType
+
+    val candidate = fileName ?: path?.substringAfterLast('/')
+    val extension = candidate?.substringAfterLast('.', "")?.lowercase()
+    return extension?.takeIf { it in AUDIO_EXTENSIONS }
+}
+
+private fun sanitizeFileName(value: String): String {
+    val cleaned = value
+        .trim()
+        .replace(Regex("[\\\\/:*?\"<>|\\u0000-\\u001F]"), "_")
+        .replace(Regex("\\s+"), " ")
+        .trim(' ', '.')
+        .take(60)
+    return cleaned.ifBlank { "audio" }
+}
+
+private fun queryDisplayName(context: Context, uri: Uri): String? = runCatching {
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+        ?.use { cursor ->
+            val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
+        }
+}.getOrNull()
+
+private class ParsedFeed(val title: String, val episodes: List<FeedEpisode>)
+
+private class EpisodeBuilder {
+    var title: String? = null
+    var durationMs: Long? = null
+    val enclosures = mutableListOf<Enclosure>()
+}
+
+private data class Enclosure(val url: String?, val type: String?, val length: String?)
+
+private enum class TextTarget { NONE, FEED_TITLE, EPISODE_TITLE, DURATION }
+
+private fun parseFeed(context: Context, base: URL, bytes: ByteArray): ParsedFeed? {
+    val parser = Xml.newPullParser()
+    parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
+    parser.setInput(ByteArrayInputStream(bytes), null)
+
+    var rootName: String? = null
+    var feedTitle: String? = null
+    var inEpisode = false
+    var inImage = false
+    var textTarget = TextTarget.NONE
+    val text = StringBuilder()
+    var episode: EpisodeBuilder? = null
+    val episodes = mutableListOf<FeedEpisode>()
+
+    var event = parser.eventType
+    while (event != XmlPullParser.END_DOCUMENT) {
+        when (event) {
+            XmlPullParser.START_TAG -> {
+                val name = parser.name
+                if (rootName == null) rootName = name
+                when (name) {
+                    "item", "entry" -> {
+                        inEpisode = true
+                        episode = EpisodeBuilder()
+                        textTarget = TextTarget.NONE
+                        text.clear()
+                    }
+                    "image" -> if (!inEpisode) inImage = true
+                    "title" -> if (!inImage) {
+                        textTarget = when {
+                            inEpisode -> TextTarget.EPISODE_TITLE
+                            feedTitle.isNullOrBlank() -> TextTarget.FEED_TITLE
+                            else -> TextTarget.NONE
+                        }
+                        text.clear()
+                    }
+                    "enclosure" -> episode?.enclosures?.add(
+                        Enclosure(
+                            url = parser.getAttributeValue(null, "url"),
+                            type = parser.getAttributeValue(null, "type"),
+                            length = parser.getAttributeValue(null, "length"),
+                        ),
+                    )
+                    "link" -> episode?.let { builder ->
+                        val rel = parser.getAttributeValue(null, "rel")
+                        if (rel.equals("enclosure", ignoreCase = true)) {
+                            builder.enclosures += Enclosure(
+                                url = parser.getAttributeValue(null, "href"),
+                                type = parser.getAttributeValue(null, "type"),
+                                length = parser.getAttributeValue(null, "length"),
+                            )
+                        }
+                    }
+                    "duration" -> if (inEpisode) {
+                        textTarget = TextTarget.DURATION
+                        text.clear()
+                    }
+                }
+            }
+            XmlPullParser.TEXT -> {
+                if (textTarget != TextTarget.NONE) text.append(parser.text)
+            }
+            XmlPullParser.END_TAG -> {
+                when (parser.name) {
+                    "title" -> {
+                        val value = text.toString().trim()
+                        when (textTarget) {
+                            TextTarget.FEED_TITLE -> if (feedTitle.isNullOrBlank() && value.isNotBlank()) {
+                                feedTitle = value
+                            }
+                            TextTarget.EPISODE_TITLE -> episode?.title = value
+                            else -> Unit
+                        }
+                        textTarget = TextTarget.NONE
+                        text.clear()
+                    }
+                    "duration" -> {
+                        if (textTarget == TextTarget.DURATION) {
+                            episode?.durationMs = parseDuration(text.toString())
+                        }
+                        textTarget = TextTarget.NONE
+                        text.clear()
+                    }
+                    "item", "entry" -> {
+                        val builder = episode
+                        if (builder != null && episodes.size < MAX_EPISODES) {
+                            val enclosure = builder.enclosures.firstOrNull { candidate ->
+                                isAudioEnclosure(candidate.url, candidate.type)
+                            }
+                            if (enclosure != null) {
+                                val resolved = enclosure.url?.let { resolveHttpUrl(base, it) }
+                                val host = resolved?.let { runCatching { URL(it).host }.getOrNull() }
+                                if (resolved != null && !isYouTubeHost(host)) {
+                                    episodes += FeedEpisode(
+                                        title = builder.title?.trim()?.takeIf { it.isNotBlank() }
+                                            ?: context.getString(
+                                                R.string.med_link_episode,
+                                                episodes.size + 1,
+                                            ),
+                                        url = resolved,
+                                        durationMs = builder.durationMs,
+                                        sizeBytes = enclosure.length
+                                            ?.toLongOrNull()
+                                            ?.takeIf { it > 0L },
+                                    )
+                                }
+                            }
+                        }
+                        inEpisode = false
+                        episode = null
+                        textTarget = TextTarget.NONE
+                        text.clear()
+                    }
+                    "image" -> inImage = false
+                }
+            }
+        }
+        event = parser.next()
+    }
+
+    val root = rootName?.lowercase()
+    if (root != "rss" && root != "feed") return null
+    return ParsedFeed(
+        title = feedTitle?.takeIf { it.isNotBlank() } ?: base.host ?: base.toString(),
+        episodes = episodes,
+    )
+}
+
+private fun isAudioEnclosure(url: String?, type: String?): Boolean {
+    val audioUrl = url?.trim().orEmpty()
+    if (audioUrl.isEmpty()) return false
+    val cleanType = type?.substringBefore(';')?.trim()?.lowercase()
+    if (cleanType != null && (cleanType.startsWith("audio/") || cleanType == "application/ogg")) {
+        return true
+    }
+    if (cleanType != null && cleanType.startsWith("video/")) return false
+    return hasAudioExtension(audioUrl)
+}
+
+private fun resolveHttpUrl(base: URL, raw: String): String? {
+    val resolved = runCatching { URL(base, raw.trim()) }.getOrNull() ?: return null
+    if (resolved.protocol.lowercase() !in setOf("http", "https")) return null
+    return resolved.toString()
+}
+
+private fun parseDuration(value: String?): Long? {
+    val text = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    val parts = text.split(':')
+    val seconds = if (parts.size == 1) {
+        text.replace(',', '.').toDoubleOrNull() ?: return null
+    } else {
+        val numbers = parts.map { part ->
+            part.trim().replace(',', '.').toDoubleOrNull() ?: return null
+        }
+        when (numbers.size) {
+            2 -> numbers[0] * 60 + numbers[1]
+            3 -> numbers[0] * 3600 + numbers[1] * 60 + numbers[2]
+            else -> return null
+        }
+    }
+    if (seconds < 0) return null
+    return (seconds * 1000.0).toLong()
+}

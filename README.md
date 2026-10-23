@@ -1,8 +1,8 @@
 # Respira
 
 A calm Android app for guided breathing, meditation listening, and a mixable ambience
-board. Spanish by default, English available in-app. Fully offline — no accounts, no
-network, no ads.
+board. Spanish by default, English available in-app. No accounts, no ads. Everything
+plays offline; the network is used only when you import audio from a link.
 
 ## Features
 
@@ -10,11 +10,29 @@ network, no ads.
   a breathing orb driven by a drift-free clock, haptics and soft chimes, 1/3/5/10 min
   or open sessions.
 - **Meditate** — five original ambient tracks, plus your own audio through the system
-  file picker (persisted read grants). Sleep timer shared with the soundscapes.
+  file picker, a direct audio/podcast link, or by sharing an audio file into Respira.
+  Sleep timer shared with the soundscapes.
 - **Soundscapes** — ten seamless nature loops (rain, storm, wind, stream, ocean, fire,
   night forest, birds, deep hum) mixed live, six presets, per-layer and master volume,
   sleep timer.
 - Background playback through a foreground media service with a media notification.
+
+## Importing audio
+
+Meditate accepts audio four ways:
+
+1. **Built-in tracks** — the five generated pieces.
+2. **From device** — the system file picker, with persisted read grants.
+3. **From a link** — paste a direct audio URL (MP3, M4A, OGG, Opus, WAV, FLAC, AAC) or a
+   podcast RSS/Atom feed, pick an episode, and the app downloads it into private app
+   storage with progress, cancellation and a 300 MB cap. The title can be edited before
+   downloading.
+4. **Share** — share an audio file from any app into Respira; it is copied into the
+   library and appears on the Meditate screen.
+
+YouTube links are intentionally not supported: YouTube's terms do not allow other apps
+to extract audio, and an on-device extractor would be brittle. If a video's audio is
+downloadable from the creator's site or podcast, import it that way or share the file.
 
 ## Build
 
@@ -65,4 +83,4 @@ persists across launches.
 
 ## Status
 
-`0.1.0-alpha02` — first test build for real-device feedback.
+`0.1.0-alpha03` — link and share import for meditation audio.

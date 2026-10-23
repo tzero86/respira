@@ -41,4 +41,36 @@
     <string name="med_track_deep_rest_subtitle">Low warmth for sleep</string>
     <string name="med_track_ocean_breath">Ocean Breath</string>
     <string name="med_track_ocean_breath_subtitle">Waves and a quiet pad</string>
+
+    <string name="med_add_from_link">Add from link</string>
+    <string name="med_link_url_label">Link</string>
+    <string name="med_link_url_hint">https://…</string>
+    <string name="med_link_paste">Paste</string>
+    <string name="med_link_analyze">Analyze</string>
+    <string name="med_link_analyzing">Analyzing…</string>
+    <string name="med_link_idle_hint">Paste a direct audio link or a podcast feed.</string>
+    <string name="med_link_title_label">Title</string>
+    <string name="med_link_size">Size: %1$s</string>
+    <string name="med_link_download">Download</string>
+    <string name="med_link_downloading">Downloading…</string>
+    <string name="med_link_cancel">Cancel</string>
+    <string name="med_link_no_episodes">This feed has no audio episodes.</string>
+    <string name="med_link_episode">Episode %1$d</string>
+    <string name="med_link_close">Close</string>
+    <string name="med_link_progress">%1$s of %2$s</string>
+    <string name="med_link_youtube">YouTube doesn\'t allow other apps to download its audio. Get the audio from the creator\'s website or podcast, then share it with Respira.</string>
+    <string name="med_link_not_audio">That link doesn\'t point to audio or a podcast.</string>
+    <string name="med_link_invalid_url">That link doesn\'t look valid. Check it and try again.</string>
+    <string name="med_link_network">Couldn\'t connect. Check your connection and try again.</string>
+    <string name="med_link_timeout">The connection took too long. Try again.</string>
+    <string name="med_link_too_large">That file is too large (300 MB maximum).</string>
+    <string name="med_link_invalid_response">That content couldn\'t be read. Try another link.</string>
+    <string name="med_link_http_error">The link returned an error. Try another one.</string>
+    <string name="med_link_download_failed">Couldn\'t download the audio. Try again.</string>
+    <string name="med_from_link">From a link</string>
+    <string name="med_shared">Shared</string>
+
+    <string name="med_share_importing">Importing to Respira…</string>
+    <string name="med_share_added">Added: %1$s</string>
+    <string name="med_share_failed">Couldn\'t import that audio.</string>
 </resources>
