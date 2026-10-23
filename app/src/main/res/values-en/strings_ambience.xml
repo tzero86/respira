@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="amb_layer_rain">Soft Rain</string>
+    <string name="amb_layer_rain_hint">Steady rain on leaves</string>
+    <string name="amb_layer_rain_heavy">Downpour</string>
+    <string name="amb_layer_rain_heavy_hint">Heavy rain and runoff</string>
+    <string name="amb_layer_thunder">Distant Thunder</string>
+    <string name="amb_layer_thunder_hint">Low rolling storms</string>
+    <string name="amb_layer_wind">Wind</string>
+    <string name="amb_layer_wind_hint">Gusts through pines</string>
+    <string name="amb_layer_stream">Stream</string>
+    <string name="amb_layer_stream_hint">Water over stones</string>
+    <string name="amb_layer_ocean">Ocean</string>
+    <string name="amb_layer_ocean_hint">Slow waves on the shore</string>
+    <string name="amb_layer_fire">Fireplace</string>
+    <string name="amb_layer_fire_hint">Crackling embers</string>
+    <string name="amb_layer_forest">Night Forest</string>
+    <string name="amb_layer_forest_hint">Crickets and owls</string>
+    <string name="amb_layer_birds">Birdsong</string>
+    <string name="amb_layer_birds_hint">Morning birds</string>
+    <string name="amb_layer_drone">Deep Hum</string>
+    <string name="amb_layer_drone_hint">Warm low resonance</string>
+
+    <string name="amb_preset_rainy_night">Rainy Night</string>
+    <string name="amb_preset_rainy_night_hint">Rain, distant thunder, soft wind</string>
+    <string name="amb_preset_storm">Storm</string>
+    <string name="amb_preset_storm_hint">Downpour and rolling thunder</string>
+    <string name="amb_preset_forest_stream">Forest Stream</string>
+    <string name="amb_preset_forest_stream_hint">Water, birds, a light breeze</string>
+    <string name="amb_preset_ocean_calm">Ocean Calm</string>
+    <string name="amb_preset_ocean_calm_hint">Slow waves and sea air</string>
+    <string name="amb_preset_fireside">Fireside</string>
+    <string name="amb_preset_fireside_hint">Embers, night forest, wind</string>
+    <string name="amb_preset_deep_calm">Deep Calm</string>
+    <string name="amb_preset_deep_calm_hint">Low hum under light rain</string>
+</resources>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_wordmark">RESPIRA</string>
+    <string name="home_greeting_morning">Buenos días</string>
+    <string name="home_greeting_afternoon">Buenas tardes</string>
+    <string name="home_greeting_evening">Buenas noches</string>
+    <string name="home_headline">Respira\ndespacio.</string>
+
+    <string name="home_hero_title">Respirar</string>
+    <string name="home_hero_subtitle">Respiración guiada</string>
+    <string name="home_hero_action">Empezar</string>
+    <string name="home_hero_pattern">4 · 7 · 8</string>
+
+    <string name="home_explore_label">Explorar</string>
+    <string name="home_card_meditate_title">Meditar</string>
+    <string name="home_card_meditate_subtitle">Sonidos suaves para un descanso profundo</string>
+    <string name="home_card_sounds_title">Sonidos</string>
+    <string name="home_card_sounds_subtitle">Combina lluvia, viento, fuego y más</string>
+
+    <string name="home_footer">Exhala un poco más largo de lo que inhalas.</string>
+
+    <string name="home_tab_home">Inicio</string>
+    <string name="home_tab_breathe">Respirar</string>
+    <string name="home_tab_meditate">Meditar</string>
+    <string name="home_tab_sounds">Sonidos</string>
+
+    <string name="home_player_play">Reproducir</string>
+    <string name="home_player_pause">Pausar</string>
+    <string name="home_player_stop">Detener</string>
+</resources>

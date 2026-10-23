@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="audio_channel_name">Reproducción</string>
+    <string name="audio_channel_description">Controles de reproducción de meditación y sonidos de ambiente</string>
+    <string name="audio_notification_title_fallback">Paisaje sonoro</string>
+    <string name="audio_notification_ambience_text">Mezcla de ambiente</string>
+    <string name="audio_notification_idle_text">Listo cuando quieras</string>
+    <string name="audio_action_play">Reproducir</string>
+    <string name="audio_action_pause">Pausar</string>
+    <string name="audio_action_stop">Detener</string>
+</resources>

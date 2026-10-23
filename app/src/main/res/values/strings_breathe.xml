@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="breathe_title">Respira</string>
+    <string name="breathe_back">Atrás</string>
+    <string name="breathe_subtitle_complete">Sesión completada</string>
+    <string name="breathe_meta">%1$s · %2$s</string>
+
+    <string name="breathe_pattern_calm">Calma</string>
+    <string name="breathe_pattern_calm_hint">Suave y constante</string>
+    <string name="breathe_pattern_box">Cuadrada</string>
+    <string name="breathe_pattern_box_hint">Ritmo equilibrado</string>
+    <string name="breathe_pattern_478">4-7-8</string>
+    <string name="breathe_pattern_478_hint">Relajación profunda</string>
+    <string name="breathe_pattern_coherent">Coherente</string>
+    <string name="breathe_pattern_coherent_hint">Ritmo del corazón</string>
+
+    <string name="breathe_phase_inhale">Inhala</string>
+    <string name="breathe_phase_hold_in">Sostén</string>
+    <string name="breathe_phase_exhale">Exhala</string>
+    <string name="breathe_phase_hold_out">Descansa</string>
+    <string name="breathe_phase_inhale_short">inhalando</string>
+    <string name="breathe_phase_hold_in_short">sosteniendo</string>
+    <string name="breathe_phase_exhale_short">exhalando</string>
+    <string name="breathe_phase_hold_out_short">descansando</string>
+    <string name="breathe_phase_detail_item">%1$s s %2$s</string>
+    <string name="breathe_detail_separator">" · "</string>
+    <string name="breathe_seconds_suffix">s</string>
+
+    <string name="breathe_length_minutes">%1$d min</string>
+    <string name="breathe_length_open">Abierta</string>
+    <string name="breathe_session_minutes_phrase">%1$d minutos de sesión</string>
+    <string name="breathe_session_open_phrase">Sesión sin límite</string>
+
+    <string name="breathe_begin">Comenzar</string>
+    <string name="breathe_pause">Pausar</string>
+    <string name="breathe_resume">Continuar</string>
+    <string name="breathe_time_left">%1$s restantes</string>
+    <string name="breathe_time_open_session">Sesión sin límite</string>
+    <string name="breathe_paused">En pausa · %1$s</string>
+
+    <string name="breathe_well_done">Bien hecho</string>
+    <string name="breathe_breathed_for">Has respirado durante %1$s.</string>
+    <string name="breathe_again">Otra vez</string>
+    <string name="breathe_done">Listo</string>
+
+    <string name="breathe_haptics">Vibración</string>
+    <string name="breathe_sound">Sonido</string>
+    <string name="breathe_toggle_on">Activado</string>
+    <string name="breathe_toggle_off">Desactivado</string>
+</resources>

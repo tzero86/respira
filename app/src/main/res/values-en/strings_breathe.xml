@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="breathe_title">Breathe</string>
+    <string name="breathe_back">Back</string>
+    <string name="breathe_subtitle_complete">Session complete</string>
+    <string name="breathe_meta">%1$s · %2$s</string>
+
+    <string name="breathe_pattern_calm">Calm</string>
+    <string name="breathe_pattern_calm_hint">Soft and steady</string>
+    <string name="breathe_pattern_box">Box</string>
+    <string name="breathe_pattern_box_hint">Balanced square</string>
+    <string name="breathe_pattern_478">4-7-8</string>
+    <string name="breathe_pattern_478_hint">Deep relaxation</string>
+    <string name="breathe_pattern_coherent">Coherent</string>
+    <string name="breathe_pattern_coherent_hint">Heart rhythm</string>
+
+    <string name="breathe_phase_inhale">Breathe in</string>
+    <string name="breathe_phase_hold_in">Hold</string>
+    <string name="breathe_phase_exhale">Breathe out</string>
+    <string name="breathe_phase_hold_out">Rest</string>
+    <string name="breathe_phase_inhale_short">in</string>
+    <string name="breathe_phase_hold_in_short">hold</string>
+    <string name="breathe_phase_exhale_short">out</string>
+    <string name="breathe_phase_hold_out_short">rest</string>
+    <string name="breathe_phase_detail_item">%1$ss %2$s</string>
+    <string name="breathe_detail_separator">" · "</string>
+    <string name="breathe_seconds_suffix">s</string>
+
+    <string name="breathe_length_minutes">%1$d min</string>
+    <string name="breathe_length_open">Open</string>
+    <string name="breathe_session_minutes_phrase">%1$d-minute session</string>
+    <string name="breathe_session_open_phrase">Open-ended session</string>
+
+    <string name="breathe_begin">Begin</string>
+    <string name="breathe_pause">Pause</string>
+    <string name="breathe_resume">Resume</string>
+    <string name="breathe_time_left">%1$s left</string>
+    <string name="breathe_time_open_session">Open session</string>
+    <string name="breathe_paused">Paused · %1$s</string>
+
+    <string name="breathe_well_done">Well done</string>
+    <string name="breathe_breathed_for">You breathed for %1$s.</string>
+    <string name="breathe_again">Again</string>
+    <string name="breathe_done">Done</string>
+
+    <string name="breathe_haptics">Haptics</string>
+    <string name="breathe_sound">Sound</string>
+    <string name="breathe_toggle_on">On</string>
+    <string name="breathe_toggle_off">Off</string>
+</resources>

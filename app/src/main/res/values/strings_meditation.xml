@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="med_title">Meditar</string>
+    <string name="med_subtitle">Pistas para un descanso profundo</string>
+    <string name="med_tonights_pick">Para esta noche</string>
+    <string name="med_section_built_in">Incluidas</string>
+    <string name="med_section_library">Tu biblioteca</string>
+    <string name="med_add_from_device">Añadir desde el dispositivo</string>
+    <string name="med_empty_title">Trae tus propias pistas</string>
+    <string name="med_empty_body">Añade audio de tu dispositivo y se quedará aquí.</string>
+    <string name="med_imported">Importada</string>
+    <string name="med_imported_track">Pista importada</string>
+    <string name="med_from_device">Desde tu dispositivo</string>
+    <string name="med_playing">Reproduciendo</string>
+    <string name="med_paused">En pausa</string>
+    <string name="med_error_unavailable">Este archivo ya no se puede abrir. Toca para reintentar.</string>
+    <string name="med_import_error_title">No se pudieron añadir algunos archivos</string>
+    <string name="med_import_error_body">Puede que no permitan acceso permanente. Prueba con otro archivo.</string>
+    <string name="med_retry">Reintentar</string>
+
+    <string name="med_now_playing">Sonando ahora</string>
+    <string name="med_play">Reproducir</string>
+    <string name="med_pause">Pausar</string>
+    <string name="med_play_track">Reproducir %1$s</string>
+    <string name="med_pause_track">Pausar %1$s</string>
+    <string name="med_remove_track">Quitar %1$s</string>
+    <string name="med_close_player">Cerrar reproductor</string>
+
+    <string name="med_sleep_off">Apagado</string>
+    <string name="med_timer_minutes">%1$dm</string>
+    <string name="med_sleep_timer_remaining">Temporizador de sueño · %1$s</string>
+    <string name="med_unknown_duration">—</string>
+
+    <string name="med_track_still_water">Agua quieta</string>
+    <string name="med_track_still_water_subtitle">Texturas cálidas y campanas lentas</string>
+    <string name="med_track_night_sky">Cielo nocturno</string>
+    <string name="med_track_night_sky_subtitle">Capas etéreas bajo las estrellas</string>
+    <string name="med_track_sunrise">Amanecer</string>
+    <string name="med_track_sunrise_subtitle">Luz suave, movimiento lento</string>
+    <string name="med_track_deep_rest">Descanso profundo</string>
+    <string name="med_track_deep_rest_subtitle">Calidez baja para dormir</string>
+    <string name="med_track_ocean_breath">Respiración marina</string>
+    <string name="med_track_ocean_breath_subtitle">Olas y una melodía tranquila</string>
+</resources>

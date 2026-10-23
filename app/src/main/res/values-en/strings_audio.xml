@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="audio_channel_name">Playback</string>
+    <string name="audio_channel_description">Meditation and ambience playback controls</string>
+    <string name="audio_notification_title_fallback">Soundscape</string>
+    <string name="audio_notification_ambience_text">Ambience mix</string>
+    <string name="audio_notification_idle_text">Ready when you are</string>
+    <string name="audio_action_play">Play</string>
+    <string name="audio_action_pause">Pause</string>
+    <string name="audio_action_stop">Stop</string>
+</resources>

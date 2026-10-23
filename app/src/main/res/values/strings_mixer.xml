@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mixer_title">Paisajes sonoros</string>
+    <string name="mixer_subtitle">Mezcla tu propia atmósfera</string>
+    <string name="mixer_silent_mix">Silencio</string>
+    <string name="mixer_playing_together">Reproduciendo juntas</string>
+    <string name="mixer_paused">En pausa</string>
+    <string name="mixer_empty_hint">Elige un paisaje sonoro para empezar</string>
+    <string name="mixer_master_volume">Volumen maestro</string>
+    <string name="mixer_sleep_timer">Temporizador</string>
+    <string name="mixer_timer_sheet_hint">La mezcla se apagará al terminar el tiempo.</string>
+    <string name="mixer_clear">Limpiar</string>
+    <string name="mixer_off">Apagado</string>
+    <string name="mixer_timer_off">Desactivado</string>
+    <string name="mixer_timer_minutes">%1$d minutos</string>
+    <string name="mixer_timer_ends_in">Termina en %1$s</string>
+    <string name="mixer_play_mix">Reproducir mezcla</string>
+    <string name="mixer_pause_mix">Pausar mezcla</string>
+    <string name="mixer_layer_volume">Volumen de %1$s</string>
+    <string name="mixer_percent">%1$d%%</string>
+
+    <plurals name="mixer_layer_count">
+        <item quantity="one">%d capa</item>
+        <item quantity="other">%d capas</item>
+    </plurals>
+</resources>

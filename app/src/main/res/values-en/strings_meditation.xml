@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="med_title">Meditate</string>
+    <string name="med_subtitle">Tracks for deep rest</string>
+    <string name="med_tonights_pick">Tonight’s pick</string>
+    <string name="med_section_built_in">Built in</string>
+    <string name="med_section_library">Your library</string>
+    <string name="med_add_from_device">Add from device</string>
+    <string name="med_empty_title">Bring your own tracks</string>
+    <string name="med_empty_body">Add audio from your device and it stays here.</string>
+    <string name="med_imported">Imported</string>
+    <string name="med_imported_track">Imported track</string>
+    <string name="med_from_device">From your device</string>
+    <string name="med_playing">Playing</string>
+    <string name="med_paused">Paused</string>
+    <string name="med_error_unavailable">This file can’t be opened anymore. Tap to retry.</string>
+    <string name="med_import_error_title">Some files couldn’t be added</string>
+    <string name="med_import_error_body">They may not allow lasting access. Try another file.</string>
+    <string name="med_retry">Retry</string>
+
+    <string name="med_now_playing">Now playing</string>
+    <string name="med_play">Play</string>
+    <string name="med_pause">Pause</string>
+    <string name="med_play_track">Play %1$s</string>
+    <string name="med_pause_track">Pause %1$s</string>
+    <string name="med_remove_track">Remove %1$s</string>
+    <string name="med_close_player">Close player</string>
+
+    <string name="med_sleep_off">Off</string>
+    <string name="med_timer_minutes">%1$dm</string>
+    <string name="med_sleep_timer_remaining">Sleep timer · %1$s</string>
+    <string name="med_unknown_duration">—</string>
+
+    <string name="med_track_still_water">Still Water</string>
+    <string name="med_track_still_water_subtitle">Warm pads and slow bells</string>
+    <string name="med_track_night_sky">Night Sky</string>
+    <string name="med_track_night_sky_subtitle">Airy drones under stars</string>
+    <string name="med_track_sunrise">Sunrise</string>
+    <string name="med_track_sunrise_subtitle">Soft light, gentle motion</string>
+    <string name="med_track_deep_rest">Deep Rest</string>
+    <string name="med_track_deep_rest_subtitle">Low warmth for sleep</string>
+    <string name="med_track_ocean_breath">Ocean Breath</string>
+    <string name="med_track_ocean_breath_subtitle">Waves and a quiet pad</string>
+</resources>

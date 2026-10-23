@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="amb_layer_rain">Lluvia suave</string>
+    <string name="amb_layer_rain_hint">Lluvia constante sobre las hojas</string>
+    <string name="amb_layer_rain_heavy">Aguacero</string>
+    <string name="amb_layer_rain_heavy_hint">Lluvia intensa y arroyos</string>
+    <string name="amb_layer_thunder">Trueno lejano</string>
+    <string name="amb_layer_thunder_hint">Tormentas que ruedan</string>
+    <string name="amb_layer_wind">Viento</string>
+    <string name="amb_layer_wind_hint">Ráfagas entre pinos</string>
+    <string name="amb_layer_stream">Arroyo</string>
+    <string name="amb_layer_stream_hint">Agua sobre las piedras</string>
+    <string name="amb_layer_ocean">Océano</string>
+    <string name="amb_layer_ocean_hint">Olas lentas en la orilla</string>
+    <string name="amb_layer_fire">Chimenea</string>
+    <string name="amb_layer_fire_hint">Brasas crepitantes</string>
+    <string name="amb_layer_forest">Bosque nocturno</string>
+    <string name="amb_layer_forest_hint">Grillos y búhos</string>
+    <string name="amb_layer_birds">Aves</string>
+    <string name="amb_layer_birds_hint">Pájaros al amanecer</string>
+    <string name="amb_layer_drone">Zumbido profundo</string>
+    <string name="amb_layer_drone_hint">Resonancia cálida y grave</string>
+
+    <string name="amb_preset_rainy_night">Noche de lluvia</string>
+    <string name="amb_preset_rainy_night_hint">Lluvia, trueno lejano y viento suave</string>
+    <string name="amb_preset_storm">Tormenta</string>
+    <string name="amb_preset_storm_hint">Aguacero y truenos que ruedan</string>
+    <string name="amb_preset_forest_stream">Arroyo del bosque</string>
+    <string name="amb_preset_forest_stream_hint">Agua, aves y una brisa ligera</string>
+    <string name="amb_preset_ocean_calm">Océano en calma</string>
+    <string name="amb_preset_ocean_calm_hint">Olas lentas y aire marino</string>
+    <string name="amb_preset_fireside">Junto al fuego</string>
+    <string name="amb_preset_fireside_hint">Brasas, bosque nocturno y viento</string>
+    <string name="amb_preset_deep_calm">Calma profunda</string>
+    <string name="amb_preset_deep_calm_hint">Zumbido grave bajo lluvia ligera</string>
+</resources>
