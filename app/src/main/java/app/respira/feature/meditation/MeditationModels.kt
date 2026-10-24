@@ -15,6 +15,8 @@ internal data class MeditationTrack(
     @DrawableRes val icon: Int,
     val accent: Color,
     val accentAlt: Color,
+    /** Absolute path to a downloaded cover image, when the source had one. */
+    val artwork: String? = null,
 )
 
 internal data class BundledMeditation(

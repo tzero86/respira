@@ -234,11 +234,16 @@ internal suspend fun downloadAudio(
             }
             partFile = null
 
+            val artwork = stream.artworkUrl?.let { url ->
+                fetchArtwork(context, url, fileName.substringBeforeLast('.'))
+            }
+
             val track = MeditationLibrary.addTrack(
                 context = context,
                 title = displayTitle,
                 uri = Uri.fromFile(target).toString(),
                 origin = ORIGIN_LINK,
+                artwork = artwork,
             )
             targetFile = null
             Result.success(track)
@@ -416,6 +421,7 @@ private class AudioStream(
     val rangeTotal: Long?,
     val mimeHint: String?,
     val isYouTube: Boolean,
+    val artworkUrl: String? = null,
 )
 
 private fun resolveYouTubeStream(videoId: String): AudioStream {
@@ -443,6 +449,7 @@ private fun resolveYouTubeStream(videoId: String): AudioStream {
                 },
                 mimeHint = audio.mimeType,
                 isYouTube = true,
+                artworkUrl = audio.artworkUrl,
             )
         }
         connection.disconnect()

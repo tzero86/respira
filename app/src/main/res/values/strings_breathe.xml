@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="breathe_title">Respira</string>
-    <string name="breathe_back">Atrás</string>
     <string name="breathe_subtitle_complete">Sesión completada</string>
     <string name="breathe_meta">%1$s · %2$s</string>
 

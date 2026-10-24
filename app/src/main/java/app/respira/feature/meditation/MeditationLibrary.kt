@@ -22,6 +22,7 @@ internal data class LibraryTrack(
     val title: String,
     val uri: String,
     val origin: String? = null,
+    val artwork: String? = null,
 )
 
 internal fun LibraryTrack.toMeditation(context: Context): MeditationTrack {
@@ -40,6 +41,7 @@ internal fun LibraryTrack.toMeditation(context: Context): MeditationTrack {
         icon = R.drawable.ic_list_music,
         accent = RespiraColors.Indigo,
         accentAlt = RespiraColors.Violet,
+        artwork = artwork,
     )
 }
 
@@ -51,6 +53,8 @@ internal data class LibraryImport(
 internal object MeditationLibrary {
     private const val Preferences = "respira_library"
     private const val TracksKey = "tracks"
+    private const val FavoritesKey = "favorites"
+    private const val PreferredKey = "preferred"
 
     fun libraryDir(context: Context): File = File(context.filesDir, "library")
 
@@ -65,7 +69,16 @@ internal object MeditationLibrary {
                     ?: context.getString(R.string.med_imported_track)
                 val uri = item.optString("uri").takeIf { it.isNotBlank() } ?: continue
                 val origin = item.optString("origin").takeIf { it.isNotBlank() }
-                add(LibraryTrack(id = id, title = title, uri = uri, origin = origin))
+                val artwork = item.optString("artwork").takeIf { it.isNotBlank() }
+                add(
+                    LibraryTrack(
+                        id = id,
+                        title = title,
+                        uri = uri,
+                        origin = origin,
+                        artwork = artwork?.takeIf { File(it).canRead() },
+                    ),
+                )
             }
         }
     }
@@ -96,12 +109,19 @@ internal object MeditationLibrary {
     }
 
     @Synchronized
-    fun addTrack(context: Context, title: String, uri: String, origin: String): LibraryTrack {
+    fun addTrack(
+        context: Context,
+        title: String,
+        uri: String,
+        origin: String,
+        artwork: String? = null,
+    ): LibraryTrack {
         val track = LibraryTrack(
             id = UUID.randomUUID().toString(),
             title = title,
             uri = uri,
             origin = origin,
+            artwork = artwork,
         )
         save(context, load(context) + track)
         return track
@@ -122,6 +142,9 @@ internal object MeditationLibrary {
             }
         }
         val remaining = tracks.filterNot { it.id == target.id }
+        deleteArtwork(context, target.artwork)
+        if (preferred(context) == "local:${target.id}") setPreferred(context, null)
+        if (isFavorite(context, "local:${target.id}")) toggleFavorite(context, "local:${target.id}")
         save(context, remaining)
         return remaining
     }
@@ -187,9 +210,42 @@ internal object MeditationLibrary {
                 .put("title", track.title)
                 .put("uri", track.uri)
             track.origin?.let { item.put("origin", it) }
+            track.artwork?.let { item.put("artwork", it) }
             array.put(item)
         }
         preferences(context).edit().putString(TracksKey, array.toString()).apply()
+    }
+
+    /** Track ids flagged for the quick collection on Home, newest first. */
+    fun favorites(context: Context): List<String> =
+        preferences(context).getString(FavoritesKey, null)
+            ?.split('\n')
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+
+    fun isFavorite(context: Context, id: String): Boolean = id in favorites(context)
+
+    @Synchronized
+    fun toggleFavorite(context: Context, id: String): List<String> {
+        val current = favorites(context)
+        val next = if (id in current) {
+            current - id
+        } else {
+            listOf(id) + current
+        }
+        // Ordered list, so store it as a single joined value rather than a Set.
+        preferences(context).edit().putString(FavoritesKey, next.joinToString("\n")).apply()
+        return next
+    }
+
+    /** Library id the user pinned as her nightly pick, or null. */
+    fun preferred(context: Context): String? =
+        preferences(context).getString(PreferredKey, null)?.takeIf { it.isNotBlank() }
+
+    fun setPreferred(context: Context, id: String?) {
+        preferences(context).edit().apply {
+            if (id == null) remove(PreferredKey) else putString(PreferredKey, id)
+        }.apply()
     }
 
     private fun preferences(context: Context) =

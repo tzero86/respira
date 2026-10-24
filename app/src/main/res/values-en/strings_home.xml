@@ -19,6 +19,15 @@
 
     <string name="home_footer">Breathe out a little longer than you breathe in.</string>
 
+    <string name="home_favorites_label">Your favorites</string>
+    <string name="home_favorites_empty_title">Your quick collection</string>
+    <string name="home_favorites_empty_body">Heart the tracks you like and they will show up here.</string>
+    <string name="home_tonight_label">For tonight</string>
+    <string name="home_tonight_action">Set</string>
+    <string name="home_favorite_open">Open %1$s</string>
+    <string name="home_favorite_play">Play %1$s</string>
+    <string name="home_favorite_pause">Pause %1$s</string>
+
     <string name="home_tab_home">Home</string>
     <string name="home_tab_breathe">Breathe</string>
     <string name="home_tab_meditate">Meditate</string>

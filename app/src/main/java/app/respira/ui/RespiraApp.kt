@@ -33,7 +33,10 @@ fun RespiraApp() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route
-    val showBar = route == Routes.Home || route == Routes.Meditate || route == Routes.Ambience
+    val showBar = route == Routes.Home ||
+        route == Routes.Breathe ||
+        route == Routes.Meditate ||
+        route == Routes.Ambience
     val navRequest by AppNavigation.request.collectAsStateWithLifecycle()
 
     LaunchedEffect(navRequest) {

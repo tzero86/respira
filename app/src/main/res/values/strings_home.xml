@@ -19,6 +19,15 @@
 
     <string name="home_footer">Exhala un poco más largo de lo que inhalas.</string>
 
+    <string name="home_favorites_label">Tus favoritas</string>
+    <string name="home_favorites_empty_title">Tu colección rápida</string>
+    <string name="home_favorites_empty_body">Marca con un corazón las pistas que te gusten y aparecerán aquí.</string>
+    <string name="home_tonight_label">Para esta noche</string>
+    <string name="home_tonight_action">Poner</string>
+    <string name="home_favorite_open">Abrir %1$s</string>
+    <string name="home_favorite_play">Reproducir %1$s</string>
+    <string name="home_favorite_pause">Pausar %1$s</string>
+
     <string name="home_tab_home">Inicio</string>
     <string name="home_tab_breathe">Respirar</string>
     <string name="home_tab_meditate">Meditar</string>

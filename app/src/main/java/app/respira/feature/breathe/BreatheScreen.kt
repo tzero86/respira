@@ -204,12 +204,6 @@ fun BreatheScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SoftIconButton(
-                icon = R.drawable.ic_chevron_left,
-                contentDescription = stringResource(R.string.breathe_back),
-                onClick = exit,
-            )
-            Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.breathe_title),

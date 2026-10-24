@@ -3,6 +3,12 @@
     <string name="med_title">Meditar</string>
     <string name="med_subtitle">Pistas para un descanso profundo</string>
     <string name="med_tonights_pick">Para esta noche</string>
+    <string name="med_your_pick">Tu elección para dormir</string>
+    <string name="med_unpin">Dejar de preferir</string>
+    <string name="med_favorite">Marcar %1$s como favorita</string>
+    <string name="med_unfavorite">Quitar %1$s de favoritas</string>
+    <string name="med_pin_short">Usar %1$s para dormir</string>
+    <string name="med_unpin_short">Dejar de usar %1$s para dormir</string>
     <string name="med_section_built_in">Incluidas</string>
     <string name="med_section_library">Tu biblioteca</string>
     <string name="med_add_from_device">Añadir desde el dispositivo</string>

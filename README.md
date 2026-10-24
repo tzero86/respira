@@ -13,6 +13,11 @@ updates.
 - **Meditate** — five original ambient tracks, plus your own audio through the system
   file picker, a direct audio/podcast/YouTube link, or by sharing an audio file into
   Respira. Sleep timer shared with the soundscapes.
+- **Covers from YouTube** — link imports keep the video thumbnail next to the title on
+  the list, in the player and on the Home cards.
+- **Your pick and your favorites** — heart any track for the quick collection at the
+  top of Home, and set one as preferred to take the big "Para esta noche" card.
+  Library removals clear both markers.
 - **Soundscapes** — ten seamless nature loops (rain, storm, wind, stream, ocean, fire,
   night forest, birds, deep hum) mixed live, six presets, per-layer and master volume,
   sleep timer.
@@ -88,6 +93,7 @@ persists across launches.
 
 ## Status
 
-`0.1.0-alpha09` — downloads run in a foreground service with a progress
-notification, so they survive app switching and dialog dismissal, and transfer over
-four parallel ranged connections instead of one.
+`0.1.0-alpha10` — YouTube imports keep their thumbnail as cover art, tracks can be
+hearted into a quick collection that leads Home, one track can be preferred to take the
+"Para esta noche" card, and Breathe is a proper tab that keeps the dock. Downloads
+still run in a foreground service over four parallel ranged connections.

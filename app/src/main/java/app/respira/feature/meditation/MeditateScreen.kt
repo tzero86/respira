@@ -62,7 +62,10 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
     var failedTrackId by remember { mutableStateOf<String?>(null) }
     var showPlayer by rememberSaveable { mutableStateOf(false) }
     var showLinkDialog by rememberSaveable { mutableStateOf(false) }
+    var activeMeditation by remember { mutableStateOf<MeditationTrack?>(null) }
     val libraryVersion by LibraryEvents.version.collectAsStateWithLifecycle()
+    var favorites by remember { mutableStateOf(MeditationLibrary.favorites(context)) }
+    var pinnedId by remember { mutableStateOf(MeditationLibrary.preferred(context)) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
@@ -102,6 +105,8 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
     fun remove(entry: LibraryTrack, meditation: MeditationTrack) {
         if (state.track?.id == meditation.track.id) Audio.hub.stopTrack()
         library = MeditationLibrary.remove(context, library, entry)
+        favorites = MeditationLibrary.favorites(context)
+        pinnedId = MeditationLibrary.preferred(context)
         if (failedTrackId == entry.id) failedTrackId = null
     }
 
@@ -111,8 +116,24 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(libraryVersion) {
         library = MeditationLibrary.load(context)
+        favorites = MeditationLibrary.favorites(context)
+        pinnedId = MeditationLibrary.preferred(context)
     }
 
+    val preferred = remember(pinnedId, library, bundled) {
+        resolvePick(context, pinnedId, bundled, library)
+    }
+
+    fun setPinned(id: String?) {
+        MeditationLibrary.setPreferred(context, id)
+        pinnedId = id
+        LibraryEvents.bump()
+    }
+
+    fun favorite(id: String) {
+        favorites = MeditationLibrary.toggleFavorite(context, id)
+        LibraryEvents.bump()
+    }
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -128,14 +149,22 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
         }
 
         item {
-            val pick = bundled.first()
-            val active = state.track?.id == pick.track.id
+            val pick = preferred
+            val meditation = pick?.meditation ?: bundled.first()
+            val entry = pick?.entry
+            val active = state.track?.id == meditation.track.id
             TonightPick(
-                meditation = pick,
+                meditation = meditation,
                 active = active,
                 playing = active && state.trackPlaying,
-                onOpen = { select(pick) },
-                onToggle = { toggle(pick) },
+                pinned = pick != null,
+                onOpen = { select(meditation, entry) },
+                onToggle = { toggle(meditation, entry) },
+                onPin = if (pick != null) {
+                    { setPinned(null) }
+                } else {
+                    null
+                },
             )
         }
 
@@ -153,8 +182,16 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
                 durationLabel = formatDuration(meditation.track.durationMs),
                 active = active,
                 playing = active && state.trackPlaying,
+                favorite = meditation.track.id in favorites,
+                pinned = pinnedId == meditation.track.id,
                 onClick = { select(meditation) },
                 onToggle = { toggle(meditation) },
+                onFavorite = { favorite(meditation.track.id) },
+                onPin = {
+                    setPinned(
+                        if (pinnedId == meditation.track.id) null else meditation.track.id,
+                    )
+                },
                 onRemove = null,
                 error = null,
             )
@@ -196,8 +233,16 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
                     durationLabel = stringResource(R.string.med_imported),
                     active = active,
                     playing = active && state.trackPlaying,
+                    favorite = meditation.track.id in favorites,
+                    pinned = pinnedId == meditation.track.id,
                     onClick = { select(meditation, entry) },
                     onToggle = { toggle(meditation, entry) },
+                    onFavorite = { favorite(meditation.track.id) },
+                    onPin = {
+                        setPinned(
+                            if (pinnedId == meditation.track.id) null else meditation.track.id,
+                        )
+                    },
                     onRemove = { remove(entry, meditation) },
                     error = error,
                 )
@@ -252,8 +297,10 @@ private fun TonightPick(
     meditation: MeditationTrack,
     active: Boolean,
     playing: Boolean,
+    pinned: Boolean,
     onOpen: () -> Unit,
     onToggle: () -> Unit,
+    onPin: (() -> Unit)?,
 ) {
     val playDescription = stringResource(
         if (active && playing) R.string.med_pause_track else R.string.med_play_track,
@@ -267,9 +314,24 @@ private fun TonightPick(
         contentPadding = PaddingValues(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel(text = stringResource(R.string.med_tonights_pick))
+            SectionLabel(
+                text = stringResource(
+                    if (pinned) R.string.med_your_pick else R.string.med_tonights_pick,
+                ),
+            )
             Spacer(Modifier.weight(1f))
             if (active) PlayingIndicator(playing)
+            if (onPin != null) {
+                Spacer(Modifier.width(8.dp))
+                SoftIconButton(
+                    icon = R.drawable.ic_heart,
+                    contentDescription = stringResource(R.string.med_unpin),
+                    onClick = onPin,
+                    size = 34.dp,
+                    tint = RespiraColors.Rose,
+                    bordered = false,
+                )
+            }
         }
         Spacer(Modifier.height(12.dp))
         TrackArtwork(
@@ -324,8 +386,12 @@ private fun TrackRow(
     durationLabel: String,
     active: Boolean,
     playing: Boolean,
+    favorite: Boolean,
+    pinned: Boolean,
     onClick: () -> Unit,
     onToggle: () -> Unit,
+    onFavorite: () -> Unit,
+    onPin: () -> Unit,
     onRemove: (() -> Unit)?,
     error: String?,
 ) {
@@ -343,7 +409,15 @@ private fun TrackRow(
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(icon = meditation.icon, tint = accent, size = 48.dp)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(accent.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                TrackThumbnail(meditation = meditation, size = 48.dp)
+            }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -383,6 +457,40 @@ private fun TrackRow(
                 }
             }
             Spacer(Modifier.width(8.dp))
+            SoftIconButton(
+                icon = R.drawable.ic_heart,
+                contentDescription = stringResource(
+                    if (favorite) R.string.med_unfavorite else R.string.med_favorite,
+                    meditation.track.title,
+                ),
+                onClick = onFavorite,
+                size = 38.dp,
+                tint = if (favorite) RespiraColors.Rose else RespiraColors.SecondaryText,
+                background = if (favorite) {
+                    RespiraColors.Rose.copy(alpha = 0.14f)
+                } else {
+                    Color.White.copy(alpha = 0.05f)
+                },
+                bordered = false,
+            )
+            Spacer(Modifier.width(4.dp))
+            SoftIconButton(
+                icon = if (pinned) R.drawable.ic_moon_star else R.drawable.ic_moon,
+                contentDescription = stringResource(
+                    if (pinned) R.string.med_unpin_short else R.string.med_pin_short,
+                    meditation.track.title,
+                ),
+                onClick = onPin,
+                size = 38.dp,
+                tint = if (pinned) RespiraColors.Aqua else RespiraColors.TertiaryText,
+                background = if (pinned) {
+                    RespiraColors.Aqua.copy(alpha = 0.14f)
+                } else {
+                    Color.White.copy(alpha = 0.05f)
+                },
+                bordered = false,
+            )
+            Spacer(Modifier.width(6.dp))
             SoftIconButton(
                 icon = if (active && playing) R.drawable.ic_pause else R.drawable.ic_play,
                 contentDescription = playDescription,

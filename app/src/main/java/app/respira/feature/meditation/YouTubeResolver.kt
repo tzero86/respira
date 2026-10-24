@@ -15,6 +15,7 @@ internal data class YouTubeAudio(
     val sizeBytes: Long?,
     val durationMs: Long?,
     val mimeType: String?,
+    val artworkUrl: String? = null,
 )
 
 internal class YouTubeUnavailableException(status: String) :
@@ -280,7 +281,29 @@ internal object YouTubeResolver {
             sizeBytes = chosen.contentLength,
             durationMs = (lengthSeconds * 1000L).takeIf { lengthSeconds > 0L },
             mimeType = chosen.mimeType,
+            artworkUrl = thumbnailUrl(details),
         )
+    }
+
+    /**
+     * Largest thumbnail in the player response. The list is descending, so the
+     * first entry is the richest cover the video publishes.
+     */
+    private fun thumbnailUrl(details: JSONObject): String? {
+        val thumbnails = details.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+            ?: return null
+        var best: String? = null
+        var bestWidth = -1
+        for (index in 0 until thumbnails.length()) {
+            val entry = thumbnails.optJSONObject(index) ?: continue
+            val url = entry.optString("url").takeIf { it.startsWith("http") } ?: continue
+            val width = entry.optInt("width")
+            if (width > bestWidth) {
+                bestWidth = width
+                best = url
+            }
+        }
+        return best
     }
 
     private fun selectAudio(formats: JSONArray): Candidate? {
