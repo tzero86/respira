@@ -14,4 +14,6 @@
 /keystore
 /keystore.properties
 /tools/testserver
+/tools/__pycache__
+/tools/recordings_built.json
 /.kotlin

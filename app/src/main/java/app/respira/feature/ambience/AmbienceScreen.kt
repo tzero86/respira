@@ -108,6 +108,9 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
         if (freshMix) {
             val savedLayers = readSavedLayers(prefs)
             if (savedLayers.isNotEmpty()) {
+                // The saved mix is restored with its levels but stays silent:
+                // a sound that begins by itself when the screen opens is not
+                // what the user asked for.
                 hub.setLayers(savedLayers)
                 hub.setLayersPlaying(false)
             }

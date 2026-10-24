@@ -287,21 +287,18 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
                 it.copy(layers = layers, layersPlaying = it.layersPlaying && layers.isNotEmpty())
             }
         } else {
-            val wasEmpty = current.layers.isEmpty()
             val layers = current.layers + (layerId to target)
+            // Turning a layer up starts the mix.  This must not depend on
+            // whether the layer map was empty: the media session can pause the
+            // mix while leaving the layers in place, and then "was empty" is
+            // false and the mixer would stay silent for good.
             updateState {
-                it.copy(layers = layers, layersPlaying = if (wasEmpty) true else it.layersPlaying)
+                it.copy(layers = layers, layersPlaying = true)
             }
-            val audible = _state.value.layersPlaying
-            val voice = ensureVoice(layerId, audible)
+            val voice = ensureVoice(layerId, audible = true)
             if (voice != null) {
-                if (audible) {
-                    startVoice(voice)
-                    fadeVoice(voice, layerGain(target))
-                } else {
-                    pauseVoice(voice)
-                    setVoiceGain(voice, 0f)
-                }
+                startVoice(voice)
+                fadeVoice(voice, layerGain(target))
             }
         }
         syncAudibility()
@@ -316,11 +313,12 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
             return@onMain
         }
         val current = _state.value
-        val wasEmpty = current.layers.isEmpty()
-        updateState {
-            it.copy(layers = cleaned, layersPlaying = if (wasEmpty) true else it.layersPlaying)
-        }
-        val audible = _state.value.layersPlaying
+        // Setting the levels of a mix does not start it.  The caller decides
+        // whether the sound should play: a mix restored when the screen opens
+        // must stay silent until the user asks for it, while a preset the
+        // user just tapped must start.
+        val audible = current.layersPlaying
+        updateState { it.copy(layers = cleaned) }
         (current.layers.keys - cleaned.keys).forEach { removeVoice(it, fade = true) }
         cleaned.forEach { (id, target) ->
             val voice = ensureVoice(id, audible) ?: return@forEach
@@ -339,8 +337,10 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
 
     override fun applyPreset(presetId: String) = onMain {
         val preset = AmbienceCatalog.preset(presetId) ?: return@onMain
+        // A preset is a thing the user just tapped, so it plays.
+        updateState { it.copy(layersPlaying = true) }
         setLayers(preset.levels)
-        if (!_state.value.layersPlaying) setLayersPlaying(true)
+        setLayersPlaying(true)
     }
 
     override fun setLayersPlaying(playing: Boolean) = onMain {

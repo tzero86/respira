@@ -47,6 +47,15 @@ class AudioService : Service() {
     private var localizedLanguage: String? = null
     private var localized: Context? = null
 
+    /**
+     * True while the app is writing the session state itself.
+     *
+     * Setting the playback state calls the session's own callbacks back, so
+     * without this guard the app would hear its own update and undo it.
+     */
+    @Volatile
+    private var publishingState = false
+
     private val sessionCallback = object : MediaSessionCompat.Callback() {
         override fun onPlay() {
             val hub = Audio.hub
@@ -55,11 +64,22 @@ class AudioService : Service() {
         }
 
         override fun onPause() {
-            Audio.hub.pauseTrack()
-            Audio.hub.setLayersPlaying(false)
+            // The session asks us to pause only when the user pressed pause
+            // somewhere outside the app.  The app publishes its own state
+            // through this session, and acting on that would cancel the mix
+            // the moment it started, so the state is compared instead of the
+            // moment: if we are already playing, this is our own echo.
+            val hub = Audio.hub
+            if (hub.state.value.isAudioActive()) return
+            hub.pauseTrack()
+            hub.setLayersPlaying(false)
         }
 
-        override fun onStop() = Audio.hub.stopAll()
+        override fun onStop() {
+            val hub = Audio.hub
+            if (hub.state.value.isAudioActive()) return
+            hub.stopAll()
+        }
 
         override fun onSeekTo(pos: Long) = Audio.hub.seekTo(pos)
     }
@@ -254,18 +274,23 @@ class AudioService : Service() {
             state.track != null || state.layers.isNotEmpty() -> PlaybackStateCompat.STATE_PAUSED
             else -> PlaybackStateCompat.STATE_STOPPED
         }
-        mediaSession.setPlaybackState(
-            PlaybackStateCompat.Builder()
-                .setActions(
-                    PlaybackStateCompat.ACTION_PLAY or
-                        PlaybackStateCompat.ACTION_PAUSE or
-                        PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                        PlaybackStateCompat.ACTION_STOP or
-                        PlaybackStateCompat.ACTION_SEEK_TO,
-                )
-                .setState(playbackState, state.positionMs, 1f)
-                .build(),
-        )
+        publishingState = true
+        try {
+            mediaSession.setPlaybackState(
+                PlaybackStateCompat.Builder()
+                    .setActions(
+                        PlaybackStateCompat.ACTION_PLAY or
+                            PlaybackStateCompat.ACTION_PAUSE or
+                            PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                            PlaybackStateCompat.ACTION_STOP or
+                            PlaybackStateCompat.ACTION_SEEK_TO,
+                    )
+                    .setState(playbackState, state.positionMs, 1f)
+                    .build(),
+            )
+        } finally {
+            publishingState = false
+        }
         val track = state.track
         mediaSession.setMetadata(
             MediaMetadataCompat.Builder()

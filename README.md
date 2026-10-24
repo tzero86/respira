@@ -23,11 +23,12 @@ updates.
 - **Keep sleeping** — Home shows the last track with the position it stopped at, so
   it resumes there instead of from the start. Tracks fade in, and fade out on their
   own at the end.
-- **Soundscapes** — ten seamless nature loops (rain, storm, wind, stream, ocean, fire,
-  night forest, birds, deep hum) mixed live, six presets, per-layer and master volume,
-  sleep timer. Every layer is built from the physical mechanism that makes the sound
-  (Poisson droplet impacts, crackle trains, bubble resonance, ocean foam), runs through
-  a synthesized room reverb and is placed on a stereo stage. Named mixes can be saved
+- **Soundscapes** — ten seamless nature loops (rain, downpour, thunder, wind, stream,
+  ocean, fire, night forest, birds, deep hum) mixed live, six presets, per-layer and
+  master volume, sleep timer. Five of them are real public-domain field recordings
+  and five are built from the physical mechanism that makes the sound (Poisson droplet
+  impacts, crackle trains, bubble resonance, ocean foam). Every layer runs through a
+  synthesized room reverb and is placed on a stereo stage. Named mixes can be saved
   and reloaded.
 - **Three tabs** — Inicio, Respirar and Biblioteca. Biblioteca holds the tracks and the
   sound mixer behind one switch. The mini player opens the full player from anywhere.
@@ -119,6 +120,15 @@ python -m http.server 8123 --directory docs
 
 ## Status
 
+`0.1.0-alpha13` — the soundscapes were rebuilt a second time, because the
+first rebuild had the right spectrum and still did not sound like anything.
+The fire ticked like a geiger counter: its crackle band was 94 % silence, so
+every crackle stood alone. Five layers are now real public-domain field
+recordings (rain on leaves, rain on a tent, sea waves, a campfire, an alpine
+stream), the loops run 40–120 seconds instead of 40, and two new checks keep
+the layers honest: one measures whether the loop point is audible, the other
+whether each layer still has a body, irregular events and varied amplitudes.
+
 `0.1.0-alpha12` — three tabs instead of four (Inicio, Respirar, Biblioteca), a Home
 screen that reshapes itself after 22:00 into a bedtime screen, a mini player that
 opens the full player from any tab, named saved mixes in the mixer and a sleep timer
@@ -129,6 +139,16 @@ flatness dropped from 0.44 (hiss) to 0.06, fire now carries audible crackle, the
 ocean has foam, and every layer runs through a synthesized room reverb. Loudness
 spread across the beds went from 13.3 LU to 0.2 LU, so the mixer slider means the
 same thing on every layer.
+
+Five of the ten layers are now **real field recordings** rather than synthesis:
+rain on leaves, rain on a tent, sea waves, a campfire and an alpine stream. A
+spectrum can be right and the sound still wrong — the fire had the crackle
+frequency but its crackle band was 94 % silence, so it ticked like a geiger
+counter. Recordings carry the parts no filter can reconstruct: the roar of the
+gas, the hiss of the flame, the stone hearth around them. All five are public
+domain; `tools/SOURCES.md` lists them. The loops are 40–120 seconds long, so a
+night does not repeat itself, and `tools/check_layers.py` checks that every
+layer still has a body, irregular events and varied amplitudes.
 
 `0.1.0-alpha11` — a bedtime routine (3 minutes of 4-7-8, then her preferred
 track), a "Seguir durmiendo" card on Home that resumes where playback stopped, a
