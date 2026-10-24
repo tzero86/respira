@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tzero86.github.io/respira/sitemap.xml

@@ -99,6 +99,16 @@ Spanish is the default locale (`app/src/main/res/values/`) regardless of the dev
 language. English lives in `values-en/`. The in-app switcher is in the Home header and
 persists across launches.
 
+## Landing page
+
+The GitHub Pages site lives in `docs/` and is published from `master` (`/docs`):
+<https://tzero86.github.io/respira/>. It is one hand-written page — no build step — with
+an interactive breathing demo, a Web Audio sound mixer and Spanish/English copy.
+
+```bash
+python -m http.server 8123 --directory docs
+```
+
 ## Status
 
 `0.1.0-alpha11` — a bedtime routine (3 minutes of 4-7-8, then her preferred

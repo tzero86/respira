@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Respira — respira despacio, duerme mejor</title>
+<meta name="description" content="Respiración guiada, meditación y un tablero de sonidos de la naturaleza que se mezcla en vivo. Android, offline, sin cuentas y sin anuncios.">
+<meta name="theme-color" content="#05070D">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Respira — respira despacio, duerme mejor">
+<meta property="og:description" content="Respiración guiada, meditación y un mixer de sonidos de la naturaleza. Offline, sin cuentas, sin anuncios.">
+<link rel="canonical" href="https://tzero86.github.io/respira/">
+<meta name="color-scheme" content="dark">
+<meta property="og:url" content="https://tzero86.github.io/respira/">
+<meta property="og:image" content="https://tzero86.github.io/respira/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Respira — respira despacio, duerme mejor">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tzero86.github.io/respira/assets/og.jpg">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Respira",
+  "applicationCategory": "HealthApplication",
+  "operatingSystem": "Android 8.0+",
+  "softwareVersion": "0.1.0-alpha11",
+  "inLanguage": ["es", "en"],
+  "downloadUrl": "https://github.com/tzero86/respira/releases/latest/download/app-release.apk",
+  "codeRepository": "https://github.com/tzero86/respira",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "description": "Guided breathing, meditation audio and a mixable nature ambience board. Offline, no accounts, no ads."
+}
+</script>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" as="image" href="assets/shots/home.webp" type="image/webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Manrope:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-waves" viewBox="0 0 24 24"><path d="M2 9.5c2-2.6 4-2.6 6 0s4 2.6 6 0 4-2.6 6 0M2 16c2-2.6 4-2.6 6 0s4 2.6 6 0 4-2.6 6 0"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.2A8.2 8.2 0 1 1 9.8 4 6.5 6.5 0 0 0 20 14.2Z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12M20 17h0"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="17" r="2"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5S4.5 16 4.5 10.8A4.3 4.3 0 0 1 12 7.9a4.3 4.3 0 0 1 7.5 2.9C19.5 16 12 20.5 12 20.5Z"/></symbol>
+  <symbol id="i-moon-star" viewBox="0 0 24 24"><path d="M19 13.5A7 7 0 1 1 10.5 5a5.6 5.6 0 0 0 8.5 8.5Z"/><path d="M17.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7Z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10.5 13.5a4 4 0 0 0 5.7 0l2.3-2.3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M13.5 10.5a4 4 0 0 0-5.7 0l-2.3 2.3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v11m0 0 4-4m-4 4-4-4M4.5 17.5v1.2A1.8 1.8 0 0 0 6.3 20.5h11.4a1.8 1.8 0 0 0 1.8-1.8v-1.2"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.4-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.1.1 1.7 1.2 1.7 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C18 4.3 19 4.6 19 4.6c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5Z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"/><path d="m9 11.5 2 2 4-4"/></symbol>
+  <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 14.5a3.8 3.8 0 0 1 .5-7.5A5 5 0 0 1 17 8.4a3.1 3.1 0 0 1 .4 6.1"/><path d="M8 17.5 7 20m5.5-2.5L11.5 20M17 17.5 16 20"/></symbol>
+  <symbol id="i-thunder" viewBox="0 0 24 24"><path d="M7 14a3.8 3.8 0 0 1 .5-7.5A5 5 0 0 1 17 8a3.5 3.5 0 0 1 .5 6"/><path d="m13 12-3 5h3l-2 4"/></symbol>
+  <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 8h10.5A3 3 0 1 0 10.5 5M3 12h15.5M3 16h8a2.8 2.8 0 1 1-2.8 2.8"/></symbol>
+  <symbol id="i-stream" viewBox="0 0 24 24"><path d="M2 8c2.5-2.4 5-2.4 7.5 0S15 10.4 17.5 8s4.5-2 4.5 0M2 13c2.5-2.4 5-2.4 7.5 0s5.5 2.4 8 0 4.5-2 4.5 0M2 18c2.5-2.4 5-2.4 7.5 0s5.5 2.4 8 0 4.5-2 4.5 0"/></symbol>
+  <symbol id="i-ocean" viewBox="0 0 24 24"><path d="M2 9c2.4-2.3 4.8-2.3 7.2 0S14.6 11.3 17 9s4.2-2.2 5 0M2 14.5c2.4-2.3 4.8-2.3 7.2 0s5.4 2.3 7.8 0 4.2-2.2 5 0"/><path d="M2 19.5c2.4-2.3 4.8-2.3 7.2 0"/></symbol>
+  <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 3s5.5 4.5 5.5 9.5a5.5 5.5 0 0 1-11 0C6.5 10 8 8 9.5 6.5c.3 1.5 1 2.5 2 3C12.3 8.2 12.5 6 12 3Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m0 0-6-6m6 6-6 6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4v-5Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.5 2"/></symbol>
+  <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 14v-1.5a8 8 0 0 1 16 0V14"/><path d="M4 14h2.5v5H5.5A1.5 1.5 0 0 1 4 17.5V14Zm16 0h-2.5v5h1a1.5 1.5 0 0 0 1.5-1.5V14Z"/></symbol>
+</svg>
+
+<div class="aurora" aria-hidden="true">
+  <span class="aurora__blob aurora__blob--a"></span>
+  <span class="aurora__blob aurora__blob--b"></span>
+  <span class="aurora__blob aurora__blob--c"></span>
+  <span class="aurora__grain"></span>
+</div>
+
+<header class="nav" id="nav">
+  <div class="nav__inner">
+    <a class="brand" href="#top" aria-label="Respira, inicio">
+      <svg class="brand__mark" viewBox="0 0 108 108" aria-hidden="true">
+        <circle cx="54" cy="54" r="26" fill="none" stroke="#72E8D5" stroke-width="2.6" opacity=".9"/>
+        <circle cx="54" cy="54" r="18" fill="none" stroke="#B49CFF" stroke-width="2.6" opacity=".8"/>
+        <circle cx="54" cy="54" r="10" fill="#72E8D5"/>
+        <path d="M54 72a18 18 0 0 0 18-18" fill="none" stroke="#fff" stroke-width="1.6" opacity=".4"/>
+      </svg>
+      <span class="brand__word">Respira</span>
+    </a>
+
+    <nav class="nav__links" aria-label="Secciones">
+      <a href="#breathe" data-i18n="nav_breathe">Respirar</a>
+      <a href="#sounds" data-i18n="nav_sounds">Sonidos</a>
+      <a href="#screens" data-i18n="nav_screens">Capturas</a>
+      <a href="#download" data-i18n="nav_download">Descargar</a>
+    </nav>
+
+    <div class="nav__actions">
+      <button class="lang" id="lang" type="button" aria-label="Cambiar idioma">
+        <span class="lang__on">ES</span><span class="lang__sep">/</span><span class="lang__off">EN</span>
+      </button>
+      <a class="btn btn--sm btn--primary" href="https://github.com/tzero86/respira/releases/latest/download/app-release.apk">
+        <svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>
+        <span data-i18n="nav_get">Descargar</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <canvas class="stars" id="stars" aria-hidden="true"></canvas>
+    <div class="hero__inner">
+      <div class="hero__copy">
+        <p class="eyebrow reveal" data-i18n="hero_eyebrow">Android · sin cuentas · sin conexión</p>
+        <h1 class="reveal" data-i18n="hero_h1">Respira <em>despacio</em>.<span>Duerme mejor.</span></h1>
+        <p class="hero__lead reveal" data-i18n="hero_lead">Respiración guiada, meditación y un tablero de sonidos de la naturaleza que se mezcla en vivo. Todo suena sin conexión, sin cuentas y sin anuncios.</p>
+        <div class="hero__cta reveal">
+          <a class="btn btn--primary btn--lg" href="https://github.com/tzero86/respira/releases/latest/download/app-release.apk">
+            <svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>
+            <span data-i18n="hero_cta1">Descargar para Android</span>
+          </a>
+          <a class="btn btn--ghost btn--lg" href="#breathe">
+            <span data-i18n="hero_cta2">Probar aquí</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg>
+          </a>
+        </div>
+        <p class="hero__meta reveal">
+          <span data-i18n="hero_meta">v0.1.0-alpha11 · 24 MB · Android 8+</span>
+          <span class="dot"></span>
+          <a class="quiet-link" href="https://github.com/tzero86/respira" data-i18n="hero_meta_link">Código en GitHub</a>
+        </p>
+      </div>
+
+      <div class="hero__stage reveal">
+        <div class="phone" id="phone">
+          <div class="phone__halo" aria-hidden="true"></div>
+          <div class="phone__body">
+            <div class="phone__notch" aria-hidden="true"></div>
+            <div class="phone__screen">
+              <img src="assets/shots/home.webp" width="560" height="1244" alt="Pantalla de inicio de Respira con la tarjeta de respiración, favoritas y la tarjeta para esta noche" fetchpriority="high" decoding="async">
+            </div>
+            <div class="phone__glass" aria-hidden="true"></div>
+          </div>
+          <div class="float-chip float-chip--a">
+            <span class="float-chip__dot"></span><span data-i18n="chip_478">4 · 7 · 8</span>
+          </div>
+          <div class="float-chip float-chip--b">
+            <svg class="ico" aria-hidden="true"><use href="#i-moon-star"/></svg><span data-i18n="chip_routine">Rutina para dormir</span>
+          </div>
+          <div class="float-chip float-chip--c">
+            <svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg><span data-i18n="chip_offline">Todo offline</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker__track">
+        <span>Lluvia suave</span><i>·</i><span>Aguacero</span><i>·</i><span>Trueno lejano</span><i>·</i><span>Viento</span><i>·</i><span>Arroyo</span><i>·</i><span>Océano</span><i>·</i><span>Chimenea</span><i>·</i><span>Bosque nocturno</span><i>·</i><span>Aves</span><i>·</i><span>Zumbido profundo</span><i>·</i>
+        <span>Lluvia suave</span><i>·</i><span>Aguacero</span><i>·</i><span>Trueno lejano</span><i>·</i><span>Viento</span><i>·</i><span>Arroyo</span><i>·</i><span>Océano</span><i>·</i><span>Chimenea</span><i>·</i><span>Bosque nocturno</span><i>·</i><span>Aves</span><i>·</i><span>Zumbido profundo</span><i>·</i>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="breathe">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow reveal" data-i18n="b_eyebrow">01 — Respirar</p>
+        <h2 class="reveal" data-i18n="b_title">Un orbe que marca el ritmo.</h2>
+        <p class="section__lead reveal" data-i18n="b_lead">Cuatro patrones, un reloj sin deriva y un círculo que crece y se recoge contigo. Toques suaves y campanas discretas si las quieres.</p>
+      </div>
+
+      <div class="breathe-panel glass reveal">
+        <div class="patterns" role="group" aria-label="Patrones de respiración">
+          <button class="pattern is-active" type="button" data-pattern="calm">
+            <b data-i18n="p_calm">Calma</b><small>4 · 0 · 6</small>
+          </button>
+          <button class="pattern" type="button" data-pattern="box">
+            <b data-i18n="p_box">Cuadrada</b><small>4 · 4 · 4 · 4</small>
+          </button>
+          <button class="pattern" type="button" data-pattern="478">
+            <b>4-7-8</b><small data-i18n="p_478_hint">Relajación profunda</small>
+          </button>
+          <button class="pattern" type="button" data-pattern="coherent">
+            <b data-i18n="p_coherent">Coherente</b><small data-i18n="p_coherent_hint">Ritmo del corazón</small>
+          </button>
+        </div>
+
+        <div class="breathe-stage">
+          <div class="orb-wrap" id="orbWrap">
+            <span class="orb-ring orb-ring--outer" aria-hidden="true"></span>
+            <span class="orb-ring orb-ring--mid" aria-hidden="true"></span>
+            <div class="orb" id="orb" aria-hidden="true"></div>
+            <div class="orb__text">
+              <span class="orb__phase" id="orbPhase">Inhala</span>
+              <span class="orb__count" id="orbCount">4</span>
+            </div>
+          </div>
+          <p class="breathe-hint" id="breatheHint" data-i18n="b_hint">Suave y constante · toca comenzar</p>
+        </div>
+
+        <div class="breathe-controls">
+          <button class="btn btn--primary" id="breatheToggle" type="button">
+            <svg class="ico" aria-hidden="true"><use href="#i-play"/></svg>
+            <span id="breatheToggleLabel" data-i18n="b_start">Comenzar</span>
+          </button>
+          <div class="breathe-lengths" role="group" aria-label="Duración de la sesión">
+            <button class="chip-btn is-active" type="button" data-min="1">1 min</button>
+            <button class="chip-btn" type="button" data-min="3">3 min</button>
+            <button class="chip-btn" type="button" data-min="5">5 min</button>
+            <button class="chip-btn" type="button" data-min="0" data-i18n="b_open">Libre</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--tight">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow reveal" data-i18n="f_eyebrow">Todo lo que hace</p>
+        <h2 class="reveal" data-i18n="f_title">Una app pequeña, muy pensada.</h2>
+      </div>
+      <div class="grid grid--3">
+        <article class="card reveal">
+          <span class="card__ico"><svg class="ico" aria-hidden="true"><use href="#i-waves"/></svg></span>
+          <h3 data-i18n="f1_title">Respiración guiada</h3>
+          <p data-i18n="f1_body">Calma, Cuadrada, 4-7-8 y Coherente. Sesiones de 1, 3, 5 o 10 minutos, o sin límite. El orbe sigue un reloj monotónico: nunca se desfasa.</p>
+        </article>
+        <article class="card reveal">
+          <span class="card__ico card__ico--violet"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg></span>
+          <h3 data-i18n="f2_title">Cinco piezas originales</h3>
+          <p data-i18n="f2_body">Pads largos hechos a mano con numpy y scipy. Sin licencias de terceros, sin catálogos que desaparecen. Agua quieta, Cielo nocturno, Amanecer, Descanso profundo y Respiración marina.</p>
+        </article>
+        <article class="card reveal">
+          <span class="card__ico card__ico--amber"><svg class="ico" aria-hidden="true"><use href="#i-sliders"/></svg></span>
+          <h3 data-i18n="f3_title">Diez capas de sonido</h3>
+          <p data-i18n="f3_body">Lluvia, aguacero, trueno, viento, arroyo, océano, chimenea, bosque nocturno, aves y un zumbido grave. Bucles sin costuras, mezclados en vivo con volumen por capa.</p>
+        </article>
+        <article class="card reveal">
+          <span class="card__ico card__ico--rose"><svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg></span>
+          <h3 data-i18n="f4_title">Tu audio, cuatro formas</h3>
+          <p data-i18n="f4_body">Desde el dispositivo, desde un enlace directo, desde YouTube o un podcast, o compartiendo un archivo a Respira. Todo se queda en tu teléfono.</p>
+        </article>
+        <article class="card reveal">
+          <span class="card__ico card__ico--indigo"><svg class="ico" aria-hidden="true"><use href="#i-moon-star"/></svg></span>
+          <h3 data-i18n="f5_title">Rutina para dormir</h3>
+          <p data-i18n="f5_body">Tres minutos de 4-7-8 y, al terminar, tu pista preferida arranca sola. Con fundido de entrada, temporizador y fundido al final de la pista.</p>
+        </article>
+        <article class="card reveal">
+          <span class="card__ico card__ico--aqua"><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg></span>
+          <h3 data-i18n="f6_title">Privada por diseño</h3>
+          <p data-i18n="f6_body">Sin cuentas, sin analíticas, sin anuncios. La red solo se usa para importar audio desde un enlace o para buscar actualizaciones de la app.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sounds">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow reveal" data-i18n="s_eyebrow">02 — Sonidos</p>
+        <h2 class="reveal" data-i18n="s_title">Mezcla tu propia noche.</h2>
+        <p class="section__lead reveal" data-i18n="s_lead">Seis presets para empezar y control por capa. Sube la lluvia, baja el viento, deja el fuego de fondo. Aquí puedes probarlo — en la app suenan los bucles originales.</p>
+      </div>
+
+      <div class="mixer glass reveal">
+        <div class="mixer__top">
+          <div class="mixer__label">
+            <svg class="ico" aria-hidden="true"><use href="#i-sliders"/></svg>
+            <span data-i18n="s_mixer">Mezclador</span>
+            <span class="mixer__count" id="mixerCount">3</span>
+          </div>
+          <div class="presets" id="presets" role="group" aria-label="Presets">
+            <button class="preset is-active" type="button" data-preset="rainy" data-i18n="s_p1">Noche de lluvia</button>
+            <button class="preset" type="button" data-preset="storm" data-i18n="s_p2">Tormenta</button>
+            <button class="preset" type="button" data-preset="forest" data-i18n="s_p3">Arroyo del bosque</button>
+            <button class="preset" type="button" data-preset="ocean" data-i18n="s_p4">Océano en calma</button>
+            <button class="preset" type="button" data-preset="fire" data-i18n="s_p5">Junto al fuego</button>
+            <button class="preset" type="button" data-preset="deep" data-i18n="s_p6">Calma profunda</button>
+          </div>
+        </div>
+
+        <div class="layers" id="layers">
+          <div class="layer">
+            <svg class="ico" aria-hidden="true"><use href="#i-rain"/></svg>
+            <span class="layer__name" data-i18n="s_rain">Lluvia</span>
+            <input type="range" min="0" max="100" value="70" data-layer="rain" aria-label="Lluvia">
+            <span class="layer__val">70</span>
+          </div>
+          <div class="layer">
+            <svg class="ico" aria-hidden="true"><use href="#i-thunder"/></svg>
+            <span class="layer__name" data-i18n="s_thunder">Trueno</span>
+            <input type="range" min="0" max="100" value="25" data-layer="thunder" aria-label="Trueno">
+            <span class="layer__val">25</span>
+          </div>
+          <div class="layer">
+            <svg class="ico" aria-hidden="true"><use href="#i-wind"/></svg>
+            <span class="layer__name" data-i18n="s_wind">Viento</span>
+            <input type="range" min="0" max="100" value="40" data-layer="wind" aria-label="Viento">
+            <span class="layer__val">40</span>
+          </div>
+          <div class="layer">
+            <svg class="ico" aria-hidden="true"><use href="#i-stream"/></svg>
+            <span class="layer__name" data-i18n="s_stream">Arroyo</span>
+            <input type="range" min="0" max="100" value="0" data-layer="stream" aria-label="Arroyo">
+            <span class="layer__val">0</span>
+          </div>
+          <div class="layer">
+            <svg class="ico" aria-hidden="true"><use href="#i-ocean"/></svg>
+            <span class="layer__name" data-i18n="s_ocean">Océano</span>
+            <input type="range" min="0" max="100" value="0" data-layer="ocean" aria-label="Océano">
+            <span class="layer__val">0</span>
+          </div>
+          <div class="layer">
+            <svg class="ico" aria-hidden="true"><use href="#i-fire"/></svg>
+            <span class="layer__name" data-i18n="s_fire">Chimenea</span>
+            <input type="range" min="0" max="100" value="0" data-layer="fire" aria-label="Chimenea">
+            <span class="layer__val">0</span>
+          </div>
+        </div>
+
+        <div class="mixer__bottom">
+          <button class="btn btn--ghost" id="mixerToggle" type="button">
+            <svg class="ico" aria-hidden="true"><use href="#i-volume"/></svg>
+            <span id="mixerToggleLabel" data-i18n="s_listen">Escuchar la mezcla</span>
+          </button>
+          <div class="meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <p class="mixer__note" data-i18n="s_note">Sintetizado en tu navegador para esta demo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="screens">
+    <div class="wrap wrap--wide">
+      <div class="section__head section__head--split">
+        <div>
+          <p class="eyebrow reveal" data-i18n="g_eyebrow">03 — Capturas</p>
+          <h2 class="reveal" data-i18n="g_title">Así se siente.</h2>
+        </div>
+        <p class="section__lead reveal" data-i18n="g_lead">Azul de noche, tipografía serif y un fondo de aurora que respira detrás de todo. Desliza para ver más.</p>
+      </div>
+
+      <div class="gallery" id="gallery">
+        <figure class="shot reveal">
+          <div class="shot__frame"><img src="assets/shots/home.webp" width="560" height="1244" loading="lazy" decoding="async" alt="Inicio con la tarjeta de respiración y las favoritas"></div>
+          <figcaption data-i18n="g1">Inicio</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <div class="shot__frame"><img src="assets/shots/breathe.webp" width="560" height="1244" loading="lazy" decoding="async" alt="Pantalla de respiración con el orbe en marcha"></div>
+          <figcaption data-i18n="g2">Respirar</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <div class="shot__frame"><img src="assets/shots/meditate.webp" width="560" height="1244" loading="lazy" decoding="async" alt="Biblioteca de meditación con pistas incluidas y propias"></div>
+          <figcaption data-i18n="g3">Meditar</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <div class="shot__frame"><img src="assets/shots/sounds.webp" width="560" height="1244" loading="lazy" decoding="async" alt="Mezclador de sonidos con capas y presets"></div>
+          <figcaption data-i18n="g4">Sonidos</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <div class="shot__frame"><img src="assets/shots/player.webp" width="560" height="1244" loading="lazy" decoding="async" alt="Reproductor de meditación con portada"></div>
+          <figcaption data-i18n="g5">Reproductor</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <div class="shot__frame"><img src="assets/shots/timer.webp" width="560" height="1244" loading="lazy" decoding="async" alt="Temporizador de sueño configurado"></div>
+          <figcaption data-i18n="g6">Temporizador</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <div class="shot__frame"><img src="assets/shots/link.webp" width="560" height="1244" loading="lazy" decoding="async" alt="Diálogo para importar audio desde un enlace"></div>
+          <figcaption data-i18n="g7">Importar</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="routine">
+    <div class="wrap">
+      <div class="split">
+        <div class="split__copy">
+          <p class="eyebrow reveal" data-i18n="r_eyebrow">04 — Dormir</p>
+          <h2 class="reveal" data-i18n="r_title">Tres minutos, luego tu pista.</h2>
+          <p class="section__lead reveal" data-i18n="r_lead">La rutina para dormir hace el trabajo aburrido: te lleva por 4-7-8 y, cuando termina, arranca la canción que elegiste. Un solo toque desde Inicio o desde Respirar.</p>
+          <ol class="steps">
+            <li class="reveal"><span>1</span><div><b data-i18n="r_s1">Tres minutos de 4-7-8</b><p data-i18n="r_s1b">Inhala cuatro, sostén siete, exhala ocho. El orbe y los toques te marcan el compás.</p></div></li>
+            <li class="reveal"><span>2</span><div><b data-i18n="r_s2">Tu pista preferida</b><p data-i18n="r_s2b">Marca una pista con el corazón y fíjala como preferida para que tome la tarjeta «Para esta noche».</p></div></li>
+            <li class="reveal"><span>3</span><div><b data-i18n="r_s3">Se apaga sola</b><p data-i18n="r_s3b">Fundido de entrada, temporizador si lo necesitas y un fundido suave al final de la pista.</p></div></li>
+          </ol>
+        </div>
+        <div class="split__visual reveal">
+          <div class="glow-card">
+            <img src="assets/shots/timer.webp" width="560" height="1244" loading="lazy" decoding="async" alt="Temporizador de sueño de Respira">
+          </div>
+          <div class="badge-float">
+            <svg class="ico" aria-hidden="true"><use href="#i-clock"/></svg>
+            <div><b data-i18n="r_badge">Seguir durmiendo</b><small data-i18n="r_badge_b">Retoma donde lo dejaste</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="import">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow reveal" data-i18n="i_eyebrow">05 — Tu música</p>
+        <h2 class="reveal" data-i18n="i_title">Trae lo que ya escuchas.</h2>
+        <p class="section__lead reveal" data-i18n="i_lead">Cuatro maneras de añadir audio. Se descarga o se copia al almacenamiento privado de la app y se queda ahí, disponible sin conexión.</p>
+      </div>
+      <div class="grid grid--4">
+        <article class="card card--plain reveal">
+          <svg class="ico card__line" aria-hidden="true"><use href="#i-plus"/></svg>
+          <h3 data-i18n="i1_title">Desde el dispositivo</h3>
+          <p data-i18n="i1_body">El selector de archivos del sistema, con permisos de lectura persistentes.</p>
+        </article>
+        <article class="card card--plain reveal">
+          <svg class="ico card__line" aria-hidden="true"><use href="#i-link"/></svg>
+          <h3 data-i18n="i2_title">Desde un enlace</h3>
+          <p data-i18n="i2_body">MP3, M4A, OGG, Opus, WAV, FLAC o AAC. Con progreso, cancelación y tope de 300 MB.</p>
+        </article>
+        <article class="card card--plain reveal">
+          <svg class="ico card__line" aria-hidden="true"><use href="#i-play"/></svg>
+          <h3 data-i18n="i3_title">Desde YouTube</h3>
+          <p data-i18n="i3_body">Vídeo, Shorts o enlace corto. Elige ahorrar espacio (~50 MB por 3 h) o máxima calidad (~190 MB).</p>
+        </article>
+        <article class="card card--plain reveal">
+          <svg class="ico card__line" aria-hidden="true"><use href="#i-headphones"/></svg>
+          <h3 data-i18n="i4_title">Compartiendo</h3>
+          <p data-i18n="i4_body">Manda un archivo de audio a Respira desde cualquier app y aparece en tu biblioteca.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download">
+    <div class="wrap">
+      <div class="download glass reveal">
+        <div class="download__copy">
+          <p class="eyebrow" data-i18n="d_eyebrow">06 — Descargar</p>
+          <h2 data-i18n="d_title">Llévatela al teléfono.</h2>
+          <p class="section__lead" data-i18n="d_lead">Un APK firmado que se instala como cualquier app. Las versiones nuevas se descargan desde la propia app, verificando paquete, versión y firma antes de pasarlas al instalador.</p>
+          <div class="download__actions">
+            <a class="btn btn--primary btn--lg" href="https://github.com/tzero86/respira/releases/latest/download/app-release.apk">
+              <svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>
+              <span data-i18n="d_cta">Descargar APK · 24 MB</span>
+            </a>
+            <a class="btn btn--ghost" href="https://github.com/tzero86/respira/releases">
+              <span data-i18n="d_all">Todas las versiones</span>
+            </a>
+          </div>
+          <ul class="facts">
+            <li><b data-i18n="d_f1">Versión</b><span>0.1.0-alpha11</span></li>
+            <li><b data-i18n="d_f2">Tamaño</b><span>24 MB</span></li>
+            <li><b data-i18n="d_f3">Android</b><span>8.0+</span></li>
+            <li><b data-i18n="d_f4">Idiomas</b><span>Español · English</span></li>
+          </ul>
+        </div>
+        <div class="download__steps">
+          <h3 data-i18n="d_how">Cómo instalarla</h3>
+          <ol class="mini-steps">
+            <li><span>01</span><p data-i18n="d_step1">Abre el enlace desde el teléfono y descarga el APK.</p></li>
+            <li><span>02</span><p data-i18n="d_step2">Cuando te lo pida, permite instalar apps desconocidas para tu navegador.</p></li>
+            <li><span>03</span><p data-i18n="d_step3">Instala y abre. No hay cuentas ni configuración inicial.</p></li>
+          </ol>
+          <p class="download__note">
+            <svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>
+            <span data-i18n="d_note">Sin anuncios, sin rastreadores, sin permisos de más.</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--quote">
+    <div class="wrap wrap--narrow">
+      <blockquote class="reveal">
+        <p data-i18n="q_text">«Exhala un poco más largo de lo que inhalas.»</p>
+        <cite data-i18n="q_cite">El único consejo de la pantalla de inicio</cite>
+      </blockquote>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer__top">
+      <a class="brand brand--footer" href="#top">
+        <svg class="brand__mark" viewBox="0 0 108 108" aria-hidden="true">
+          <circle cx="54" cy="54" r="26" fill="none" stroke="#72E8D5" stroke-width="2.6" opacity=".9"/>
+          <circle cx="54" cy="54" r="18" fill="none" stroke="#B49CFF" stroke-width="2.6" opacity=".8"/>
+          <circle cx="54" cy="54" r="10" fill="#72E8D5"/>
+        </svg>
+        <span class="brand__word">Respira</span>
+      </a>
+      <nav class="footer__links">
+        <a href="https://github.com/tzero86/respira"><svg class="ico ico--fill" aria-hidden="true"><use href="#i-github"/></svg>GitHub</a>
+        <a href="https://github.com/tzero86/respira/releases" data-i18n="f_releases">Versiones</a>
+        <a href="https://github.com/tzero86/respira#readme" data-i18n="f_readme">Documentación</a>
+        <a href="#download" data-i18n="nav_download">Descargar</a>
+      </nav>
+    </div>
+    <div class="footer__bottom">
+      <p data-i18n="f_made">Un proyecto personal, hecho con calma. Android · Kotlin · Jetpack Compose.</p>
+      <p class="footer__legal"><span data-i18n="f_priv">Sin cuentas · Sin anuncios · Sin analíticas</span> · <span id="year">2026</span></p>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/site.js" defer></script>
+</body>
+</html>
