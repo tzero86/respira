@@ -62,7 +62,7 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
     var library by remember { mutableStateOf(MeditationLibrary.load(context)) }
     var importFailed by remember { mutableStateOf(false) }
     var failedTrackId by remember { mutableStateOf<String?>(null) }
-    var showPlayer by rememberSaveable { mutableStateOf(false) }
+    var playerTrackId by remember { mutableStateOf<String?>(null) }
     var showLinkDialog by rememberSaveable { mutableStateOf(false) }
     var activeMeditation by remember { mutableStateOf<MeditationTrack?>(null) }
     val libraryVersion by LibraryEvents.version.collectAsStateWithLifecycle()
@@ -86,12 +86,14 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
         }
         failedTrackId = null
         Audio.hub.playTrack(meditation.track)
-        showPlayer = true
+        playerTrackId = meditation.track.id
+        MeditationPlayerRequest.openTrack(meditation.track.id)
     }
 
     fun select(meditation: MeditationTrack, entry: LibraryTrack? = null) {
         if (state.track?.id == meditation.track.id) {
-            showPlayer = true
+            playerTrackId = meditation.track.id
+            MeditationPlayerRequest.openTrack(meditation.track.id)
         } else {
             play(meditation, entry)
         }
@@ -111,10 +113,6 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
         favorites = MeditationLibrary.favorites(context)
         pinnedId = MeditationLibrary.preferred(context)
         if (failedTrackId == entry.id) failedTrackId = null
-    }
-
-    LaunchedEffect(state.track) {
-        if (state.track == null) showPlayer = false
     }
 
     LaunchedEffect(libraryVersion) {
@@ -295,15 +293,11 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    if (showPlayer) {
-        state.track?.let { current ->
-            MeditationPlayerDialog(
-                track = current,
-                meditation = current.asMeditation(),
-                state = state,
-                onClose = { showPlayer = false },
-            )
-        }
+    playerTrackId?.let { id ->
+        MeditationPlayerHost(
+            trackId = id,
+            onClose = { playerTrackId = null },
+        )
     }
 
     if (showLinkDialog) {

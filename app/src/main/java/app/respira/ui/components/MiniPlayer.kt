@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,6 +28,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -37,7 +41,10 @@ import app.respira.ui.theme.RespiraColors.Mist
 import app.respira.ui.theme.RespiraColors.SecondaryText
 
 @Composable
-fun MiniPlayer(modifier: Modifier = Modifier) {
+fun MiniPlayer(
+    modifier: Modifier = Modifier,
+    onOpen: () -> Unit,
+) {
     val state by Audio.hub.state.collectAsStateWithLifecycle()
     val track = state.track
 
@@ -50,6 +57,10 @@ fun MiniPlayer(modifier: Modifier = Modifier) {
         track?.let { current ->
             val titleText = current.titleRes?.let { stringResource(it) } ?: current.title
             val subtitleText = current.subtitleRes?.let { stringResource(it) } ?: current.subtitle
+            val openLabel = stringResource(R.string.audio_open_player)
+            val playbackState = stringResource(
+                if (state.trackPlaying) R.string.med_playing else R.string.med_paused,
+            )
             GlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -59,42 +70,62 @@ fun MiniPlayer(modifier: Modifier = Modifier) {
                 contentPadding = PaddingValues(10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .size(42.dp)
+                            .weight(1f)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        RespiraColors.Violet.copy(alpha = 0.35f),
-                                        RespiraColors.Indigo.copy(alpha = 0.22f),
+                            .clickable(
+                                role = Role.Button,
+                                onClickLabel = openLabel,
+                                onClick = onOpen,
+                            )
+                            .semantics { stateDescription = playbackState },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            RespiraColors.Violet.copy(alpha = 0.35f),
+                                            RespiraColors.Indigo.copy(alpha = 0.22f),
+                                        ),
                                     ),
                                 ),
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_moon),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = Mist,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = titleText,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Mist,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = subtitleText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = SecondaryText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
                         Icon(
-                            painter = painterResource(R.drawable.ic_moon),
+                            painter = painterResource(R.drawable.ic_chevron_right),
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = Mist,
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = titleText,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Mist,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = subtitleText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SecondaryText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.size(16.dp),
+                            tint = RespiraColors.TertiaryText,
                         )
                     }
                     SoftIconButton(

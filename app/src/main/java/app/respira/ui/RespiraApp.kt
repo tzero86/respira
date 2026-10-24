@@ -1,29 +1,30 @@
 package app.respira.ui
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import app.respira.audio.Audio
 import app.respira.feature.ambience.AmbienceScreen
 import app.respira.feature.breathe.BreatheScreen
 import app.respira.feature.home.HomeScreen
 import app.respira.feature.meditation.MeditateScreen
+import app.respira.feature.meditation.MeditationPlayerHost
+import app.respira.feature.meditation.MeditationPlayerRequest
 import app.respira.ui.components.AuroraBackdrop
 import app.respira.ui.components.MiniPlayer
 import app.respira.ui.components.RespiraBottomBar
@@ -33,10 +34,6 @@ fun RespiraApp() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route
-    val showBar = route == Routes.Home ||
-        route == Routes.Breathe ||
-        route == Routes.Meditate ||
-        route == Routes.Ambience
     val navRequest by AppNavigation.request.collectAsStateWithLifecycle()
 
     LaunchedEffect(navRequest) {
@@ -70,6 +67,9 @@ fun RespiraApp() {
                     composable(Routes.Breathe) {
                         BreatheScreen(onBack = { navController.popBackStack() })
                     }
+                    composable(Routes.Library) {
+                        LibraryScreen()
+                    }
                     composable(Routes.Meditate) {
                         MeditateScreen()
                     }
@@ -80,17 +80,26 @@ fun RespiraApp() {
             }
 
             MiniPlayer(
-                modifier = if (showBar) Modifier else Modifier.navigationBarsPadding(),
+                onOpen = {
+                    Audio.hub.state.value.track?.id?.let { MeditationPlayerRequest.openAny(it) }
+                },
             )
 
-            AnimatedVisibility(visible = showBar) {
-                RespiraBottomBar(
-                    currentRoute = route,
-                    onSelect = { navController.navigateTab(it) },
-                )
-            }
+            RespiraBottomBar(
+                currentRoute = route.tabRoute(),
+                onSelect = { navController.navigateTab(it) },
+            )
         }
+
+        MeditationPlayerHost(
+            onClose = { MeditationPlayerRequest.close() },
+        )
     }
+}
+
+private fun String?.tabRoute(): String? = when (this) {
+    Routes.Meditate, Routes.Ambience -> Routes.Library
+    else -> this
 }
 
 private fun NavHostController.navigateTab(route: String) {

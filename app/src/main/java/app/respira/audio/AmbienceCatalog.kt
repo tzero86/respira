@@ -11,6 +11,12 @@ data class AmbienceLayer(
     /** Key the UI maps to a drawable + accent color. */
     val icon: String,
     @RawRes val rawResId: Int,
+    /**
+     * Stereo placement of the layer, -1 (hard left) to 1 (hard right).
+     * 0 keeps the layer centred. The hub turns this into a constant-power
+     * pan, so the layer keeps its level while it moves across the stage.
+     */
+    val pan: Float,
 )
 
 data class AmbiencePreset(
@@ -26,16 +32,16 @@ data class AmbiencePreset(
  */
 object AmbienceCatalog {
     val layers: List<AmbienceLayer> = listOf(
-        AmbienceLayer("rain", R.string.amb_layer_rain, R.string.amb_layer_rain_hint, "rain", R.raw.amb_rain),
-        AmbienceLayer("rain_heavy", R.string.amb_layer_rain_heavy, R.string.amb_layer_rain_heavy_hint, "rain", R.raw.amb_rain_heavy),
-        AmbienceLayer("thunder", R.string.amb_layer_thunder, R.string.amb_layer_thunder_hint, "lightning", R.raw.amb_thunder),
-        AmbienceLayer("wind", R.string.amb_layer_wind, R.string.amb_layer_wind_hint, "wind", R.raw.amb_wind),
-        AmbienceLayer("stream", R.string.amb_layer_stream, R.string.amb_layer_stream_hint, "droplets", R.raw.amb_stream),
-        AmbienceLayer("ocean", R.string.amb_layer_ocean, R.string.amb_layer_ocean_hint, "ocean", R.raw.amb_ocean),
-        AmbienceLayer("fire", R.string.amb_layer_fire, R.string.amb_layer_fire_hint, "flame", R.raw.amb_fire),
-        AmbienceLayer("forest", R.string.amb_layer_forest, R.string.amb_layer_forest_hint, "forest", R.raw.amb_forest),
-        AmbienceLayer("birds", R.string.amb_layer_birds, R.string.amb_layer_birds_hint, "bird", R.raw.amb_birds),
-        AmbienceLayer("drone", R.string.amb_layer_drone, R.string.amb_layer_drone_hint, "drone", R.raw.amb_drone),
+        AmbienceLayer("rain", R.string.amb_layer_rain, R.string.amb_layer_rain_hint, "rain", R.raw.amb_rain, -0.35f),
+        AmbienceLayer("rain_heavy", R.string.amb_layer_rain_heavy, R.string.amb_layer_rain_heavy_hint, "rain", R.raw.amb_rain_heavy, 0.35f),
+        AmbienceLayer("thunder", R.string.amb_layer_thunder, R.string.amb_layer_thunder_hint, "lightning", R.raw.amb_thunder, 0.0f),
+        AmbienceLayer("wind", R.string.amb_layer_wind, R.string.amb_layer_wind_hint, "wind", R.raw.amb_wind, -0.20f),
+        AmbienceLayer("stream", R.string.amb_layer_stream, R.string.amb_layer_stream_hint, "droplets", R.raw.amb_stream, -0.50f),
+        AmbienceLayer("ocean", R.string.amb_layer_ocean, R.string.amb_layer_ocean_hint, "ocean", R.raw.amb_ocean, 0.40f),
+        AmbienceLayer("fire", R.string.amb_layer_fire, R.string.amb_layer_fire_hint, "flame", R.raw.amb_fire, 0.55f),
+        AmbienceLayer("forest", R.string.amb_layer_forest, R.string.amb_layer_forest_hint, "forest", R.raw.amb_forest, -0.15f),
+        AmbienceLayer("birds", R.string.amb_layer_birds, R.string.amb_layer_birds_hint, "bird", R.raw.amb_birds, 0.25f),
+        AmbienceLayer("drone", R.string.amb_layer_drone, R.string.amb_layer_drone_hint, "drone", R.raw.amb_drone, 0.0f),
     )
 
     val presets: List<AmbiencePreset> = listOf(

@@ -2,7 +2,10 @@ package app.respira.feature.ambience
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,10 +26,13 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -34,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,8 +51,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.respira.R
 import app.respira.audio.AmbienceCatalog
@@ -53,7 +66,9 @@ import app.respira.audio.Audio
 import app.respira.audio.AudioState
 import app.respira.ui.components.GhostPill
 import app.respira.ui.components.GlassCard
+import app.respira.ui.components.PillButton
 import app.respira.ui.components.ScreenHeader
+import app.respira.ui.components.SectionLabel
 import app.respira.ui.theme.RespiraColors
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -66,7 +81,8 @@ private const val KeyMaster = "master"
 private const val KeyTimerEnd = "sleep_timer_end_ms"
 private const val DefaultLayerVolume = 0.6f
 
-private val SleepTimerOptions = listOf<Int?>(null, 15, 30, 45, 60)
+private val SleepTimerOptions = listOf<Int?>(null, 15, 30, 45, 60, 90, 120, 240, 480)
+private val SleepTimerMinutes = SleepTimerOptions.filterNotNull()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +98,8 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var restored by remember { mutableStateOf(false) }
     var showTimerSheet by remember { mutableStateOf(false) }
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var savedMixes by remember(context) { mutableStateOf(MixLibrary.saved(context)) }
 
     LaunchedEffect(hub) {
         val snapshot = hub.state.value
@@ -132,6 +150,17 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
         AmbienceCatalog.presets.firstOrNull { levelsMatch(state.layers, it.levels) }?.id
     }
 
+    // Only the set of active layers reorders the grid, so a fading layer never
+    // makes the tiles jump around.
+    val activeLayerIds = state.layers.filterValues { it > 0.001f }.keys
+    val orderedLayers = remember(activeLayerIds) {
+        val active = AmbienceCatalog.layers
+            .filter { it.id in activeLayerIds }
+            .sortedByDescending { state.layers[it.id] ?: 0f }
+        val inactive = AmbienceCatalog.layers.filter { it.id !in activeLayerIds }
+        active + inactive
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -144,6 +173,25 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
             subtitle = stringResource(R.string.mixer_subtitle),
         )
         Spacer(Modifier.height(14.dp))
+
+        SavedMixesRow(
+            mixes = savedMixes,
+            onLoad = { mix ->
+                hub.setLayers(mix.layers)
+                hub.setMasterVolume(mix.masterVolume)
+            },
+            onDelete = { mix ->
+                MixLibrary.delete(context, mix.id)
+                savedMixes = MixLibrary.saved(context)
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.mixer_mix_deleted),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            },
+        )
+
+        Spacer(Modifier.height(12.dp))
 
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -175,10 +223,10 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
             contentPadding = PaddingValues(bottom = 12.dp),
         ) {
             items(
-                count = AmbienceCatalog.layers.size,
-                key = { index -> AmbienceCatalog.layers[index].id },
+                count = orderedLayers.size,
+                key = { index -> orderedLayers[index].id },
             ) { index ->
-                val layer = AmbienceCatalog.layers[index]
+                val layer = orderedLayers[index]
                 val volume = state.layers[layer.id] ?: 0f
                 LayerTile(
                     layer = layer,
@@ -206,6 +254,7 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
             onTogglePlay = { hub.toggleLayers() },
             onMasterVolume = { hub.setMasterVolume(it) },
             onOpenTimer = { showTimerSheet = true },
+            onSaveMix = { showSaveDialog = true },
             onClear = { hub.clearLayers() },
         )
 
@@ -238,6 +287,189 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
             )
         }
     }
+
+    if (showSaveDialog) {
+        SaveMixDialog(
+            onDismiss = { showSaveDialog = false },
+            onSave = { name ->
+                val mix = MixLibrary.save(context, name, state.layers, state.masterVolume)
+                savedMixes = MixLibrary.saved(context)
+                showSaveDialog = false
+                if (mix.id.isNotEmpty()) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.mixer_mix_saved, mix.name),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SavedMixesRow(
+    mixes: List<SavedMix>,
+    onLoad: (SavedMix) -> Unit,
+    onDelete: (SavedMix) -> Unit,
+) {
+    if (mixes.isEmpty()) {
+        Text(
+            text = stringResource(R.string.mixer_no_saved_mixes),
+            style = MaterialTheme.typography.bodySmall,
+            color = RespiraColors.TertiaryText,
+        )
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SectionLabel(text = stringResource(R.string.mixer_saved_mixes))
+        LazyRow(
+            modifier = Modifier.height(44.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(end = 12.dp),
+        ) {
+            items(
+                count = mixes.size,
+                key = { index -> mixes[index].id },
+            ) { index ->
+                val mix = mixes[index]
+                SavedMixChip(
+                    name = mix.name,
+                    onLoad = { onLoad(mix) },
+                    onDelete = { onDelete(mix) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavedMixChip(
+    name: String,
+    onLoad: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val loadDescription = stringResource(R.string.mixer_load_mix, name)
+    val deleteDescription = stringResource(R.string.mixer_delete_mix)
+    Row(
+        modifier = Modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.05f))
+            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(50)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelMedium,
+            color = RespiraColors.SecondaryText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .clickable(onClick = onLoad)
+                .semantics { contentDescription = loadDescription }
+                .padding(start = 14.dp, end = 8.dp),
+        )
+        Box(
+            modifier = Modifier
+                .padding(end = 11.dp)
+                .size(20.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onDelete),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_x),
+                contentDescription = deleteDescription,
+                modifier = Modifier.size(12.dp),
+                tint = RespiraColors.TertiaryText,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SaveMixDialog(
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    val trimmed = name.trim()
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.52f))
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                solidColor = RespiraColors.Night,
+                contentPadding = PaddingValues(20.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        text = stringResource(R.string.mixer_save_mix),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = RespiraColors.Mist,
+                    )
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(text = stringResource(R.string.mixer_mix_name_label)) },
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.mixer_mix_name_hint),
+                                color = RespiraColors.TertiaryText,
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done,
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = RespiraColors.Mist,
+                            unfocusedTextColor = RespiraColors.Mist,
+                            cursorColor = RespiraColors.Aqua,
+                            focusedBorderColor = RespiraColors.Aqua,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                            focusedLabelColor = RespiraColors.Aqua,
+                            unfocusedLabelColor = RespiraColors.TertiaryText,
+                            focusedPlaceholderColor = RespiraColors.TertiaryText,
+                            unfocusedPlaceholderColor = RespiraColors.TertiaryText,
+                        ),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        GhostPill(
+                            text = stringResource(R.string.mixer_cancel),
+                            onClick = onDismiss,
+                            modifier = Modifier.height(44.dp),
+                        )
+                        Spacer(Modifier.weight(1f))
+                        PillButton(
+                            text = stringResource(R.string.mixer_save),
+                            onClick = { onSave(trimmed) },
+                            enabled = trimmed.isNotEmpty(),
+                            modifier = Modifier.height(44.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -246,6 +478,7 @@ private fun MixerFooter(
     onTogglePlay: () -> Unit,
     onMasterVolume: (Float) -> Unit,
     onOpenTimer: () -> Unit,
+    onSaveMix: () -> Unit,
     onClear: () -> Unit,
 ) {
     val remaining = rememberSleepRemaining(state.sleepTimerEndMs)
@@ -343,8 +576,27 @@ private fun MixerFooter(
                     )
                 },
             )
-            Spacer(Modifier.weight(1f))
-            if (hasLayers) {
+        }
+
+        if (hasLayers) {
+            Spacer(Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                GhostPill(
+                    text = stringResource(R.string.mixer_save_mix),
+                    onClick = onSaveMix,
+                    modifier = Modifier.height(44.dp),
+                    leading = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_plus),
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = RespiraColors.SecondaryText,
+                        )
+                    },
+                )
                 GhostPill(
                     text = stringResource(R.string.mixer_clear),
                     onClick = onClear,
@@ -395,7 +647,7 @@ private fun SleepTimerSheet(
             val optionLabel = if (minutes == null) {
                 stringResource(R.string.mixer_timer_off)
             } else {
-                stringResource(R.string.mixer_timer_minutes, minutes)
+                timerOptionLabel(minutes)
             }
             Row(
                 modifier = Modifier
@@ -443,6 +695,13 @@ private fun SleepTimerSheet(
 }
 
 @Composable
+private fun timerOptionLabel(minutes: Int): String = if (minutes >= 120) {
+    stringResource(R.string.mixer_timer_hours, minutes / 60)
+} else {
+    stringResource(R.string.mixer_timer_minutes_short, minutes)
+}
+
+@Composable
 private fun rememberSleepRemaining(endMs: Long?): Long? {
     var now by remember(endMs) { mutableStateOf(System.currentTimeMillis()) }
 
@@ -485,11 +744,9 @@ private fun levelsMatch(layers: Map<String, Float>, expected: Map<String, Float>
     }
 }
 
-private fun timerBucket(remainingMs: Long): Int = when {
-    remainingMs > 45 * 60_000L -> 60
-    remainingMs > 30 * 60_000L -> 45
-    remainingMs > 15 * 60_000L -> 30
-    else -> 15
+private fun timerBucket(remainingMs: Long): Int {
+    val minutes = remainingMs / 60_000.0
+    return SleepTimerMinutes.firstOrNull { minutes <= it } ?: SleepTimerMinutes.last()
 }
 
 private fun formatCountdown(ms: Long): String {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,9 +37,7 @@ import androidx.compose.ui.unit.dp
 import app.respira.R
 import app.respira.audio.AmbienceLayer
 import app.respira.ui.components.GlassCard
-import app.respira.ui.components.IconBadge
 import app.respira.ui.theme.RespiraColors
-import kotlin.math.roundToInt
 
 private data class LayerStyle(@DrawableRes val icon: Int, val accent: Color)
 
@@ -90,7 +89,6 @@ internal fun LayerTile(
     val style = layerStyles[layer.id] ?: fallbackLayerStyle
     val active = volume > 0.001f
     val name = stringResource(layer.nameRes)
-    val hint = stringResource(layer.hintRes)
 
     GlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -101,45 +99,43 @@ internal fun LayerTile(
         contentPadding = PaddingValues(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(
-                icon = style.icon,
-                tint = if (active) style.accent else RespiraColors.SecondaryText,
-                size = 34.dp,
-            )
-            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(style.accent.copy(alpha = if (active) 0.16f else 0.07f))
+                    .border(
+                        1.dp,
+                        style.accent.copy(alpha = if (active) 0.28f else 0.12f),
+                        RoundedCornerShape(16.dp),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(style.icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(34.dp),
+                    tint = if (active) style.accent else RespiraColors.SecondaryText,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
             Text(
-                text = if (active) {
-                    stringResource(R.string.mixer_percent, (volume * 100).roundToInt().coerceAtLeast(1))
-                } else {
-                    stringResource(R.string.mixer_off)
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = if (active) style.accent else RespiraColors.TertiaryText,
+                text = name,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (active) RespiraColors.Mist else RespiraColors.SecondaryText,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
         }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = name,
-            style = MaterialTheme.typography.titleSmall,
-            color = if (active) RespiraColors.Mist else RespiraColors.SecondaryText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = hint,
-            style = MaterialTheme.typography.bodySmall,
-            color = RespiraColors.TertiaryText,
-            minLines = 2,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.height(2.dp))
-        AmbienceSlider(
-            value = volume,
-            onValueChange = onVolumeChange,
-            label = stringResource(R.string.mixer_layer_volume, name),
-        )
+        if (active) {
+            Spacer(Modifier.height(10.dp))
+            AmbienceSlider(
+                value = volume,
+                onValueChange = onVolumeChange,
+                label = stringResource(R.string.mixer_layer_volume, name),
+            )
+        }
     }
 }
 

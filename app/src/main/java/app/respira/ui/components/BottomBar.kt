@@ -43,8 +43,7 @@ data class BottomTab(
 val RespiraTabs = listOf(
     BottomTab(Routes.Home, R.string.home_tab_home, R.drawable.ic_house),
     BottomTab(Routes.Breathe, R.string.home_tab_breathe, R.drawable.ic_wind),
-    BottomTab(Routes.Meditate, R.string.home_tab_meditate, R.drawable.ic_moon),
-    BottomTab(Routes.Ambience, R.string.home_tab_sounds, R.drawable.ic_cloud_rain),
+    BottomTab(Routes.Library, R.string.home_tab_library, R.drawable.ic_list_music),
 )
 
 @Composable

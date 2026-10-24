@@ -25,7 +25,15 @@ updates.
   own at the end.
 - **Soundscapes** — ten seamless nature loops (rain, storm, wind, stream, ocean, fire,
   night forest, birds, deep hum) mixed live, six presets, per-layer and master volume,
-  sleep timer.
+  sleep timer. Every layer is built from the physical mechanism that makes the sound
+  (Poisson droplet impacts, crackle trains, bubble resonance, ocean foam), runs through
+  a synthesized room reverb and is placed on a stereo stage. Named mixes can be saved
+  and reloaded.
+- **Three tabs** — Inicio, Respirar and Biblioteca. Biblioteca holds the tracks and the
+  sound mixer behind one switch. The mini player opens the full player from anywhere.
+- **A home screen that knows the hour** — after 22:00 it becomes a bedtime screen: the
+  routine first, then "Seguir durmiendo" and "Para esta noche". The browsing cards
+  disappear until morning.
 - Background playback through a foreground media service with a media notification.
 - **Self-updates** — release builds poll the GitHub releases feed, download the newer
   APK with progress, verify package, version and signing certificate, and hand it to
@@ -110,6 +118,17 @@ python -m http.server 8123 --directory docs
 ```
 
 ## Status
+
+`0.1.0-alpha12` — three tabs instead of four (Inicio, Respirar, Biblioteca), a Home
+screen that reshapes itself after 22:00 into a bedtime screen, a mini player that
+opens the full player from any tab, named saved mixes in the mixer and a sleep timer
+that reaches eight hours.
+
+The ambience layers were rebuilt from their physical mechanisms: rain's spectral
+flatness dropped from 0.44 (hiss) to 0.06, fire now carries audible crackle, the
+ocean has foam, and every layer runs through a synthesized room reverb. Loudness
+spread across the beds went from 13.3 LU to 0.2 LU, so the mixer slider means the
+same thing on every layer.
 
 `0.1.0-alpha11` — a bedtime routine (3 minutes of 4-7-8, then her preferred
 track), a "Seguir durmiendo" card on Home that resumes where playback stopped, a

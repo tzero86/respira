@@ -8,4 +8,5 @@
     <string name="audio_action_play">Reproducir</string>
     <string name="audio_action_pause">Pausar</string>
     <string name="audio_action_stop">Detener</string>
+    <string name="audio_open_player">Abrir el reproductor</string>
 </resources>

@@ -31,6 +31,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Playback engine for the single meditation track and the mixable ambience
@@ -611,7 +613,7 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         runCatching { mediaPlayer.setAudioAttributes(PLATFORM_AUDIO_ATTRIBUTES) }
         runCatching { mediaPlayer.setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK) }
         runCatching { mediaPlayer.setVolume(0f, 0f) }
-        val voice = LayerVoice(mediaPlayer)
+        val voice = LayerVoice(mediaPlayer, pan = layer.pan)
         voices[layerId] = voice
         if (audible) startVoice(voice)
         return voice
@@ -653,7 +655,12 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
     private fun setVoiceGain(voice: LayerVoice, gain: Float) {
         val clamped = gain.coerceIn(0f, 1f)
         voice.gain = clamped
-        runCatching { voice.player.setVolume(clamped, clamped) }
+        // Constant-power pan: the layer keeps its level while it moves across
+        // the stage, so placing a layer on the left does not quieten it down.
+        val theta = ((voice.pan.coerceIn(-1f, 1f) + 1f) / 2f) * (Math.PI / 2f).toFloat()
+        runCatching {
+            voice.player.setVolume(clamped * cos(theta), clamped * sin(theta))
+        }
     }
 
     private fun fadeVoice(
@@ -907,6 +914,8 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         val player: MediaPlayer,
         var gain: Float = 0f,
         var fadeJob: Job? = null,
+        /** Stereo placement, -1 (hard left) to 1 (hard right). */
+        val pan: Float = 0f,
     )
 
     private companion object {

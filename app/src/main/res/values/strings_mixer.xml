@@ -10,14 +10,26 @@
     <string name="mixer_sleep_timer">Temporizador</string>
     <string name="mixer_timer_sheet_hint">La mezcla se apagará al terminar el tiempo.</string>
     <string name="mixer_clear">Limpiar</string>
-    <string name="mixer_off">Apagado</string>
     <string name="mixer_timer_off">Desactivado</string>
-    <string name="mixer_timer_minutes">%1$d minutos</string>
+    <string name="mixer_timer_minutes_short">%1$d min</string>
+    <string name="mixer_timer_hours">%1$d h</string>
     <string name="mixer_timer_ends_in">Termina en %1$s</string>
     <string name="mixer_play_mix">Reproducir mezcla</string>
     <string name="mixer_pause_mix">Pausar mezcla</string>
     <string name="mixer_layer_volume">Volumen de %1$s</string>
     <string name="mixer_percent">%1$d%%</string>
+
+    <string name="mixer_saved_mixes">Tus mezclas</string>
+    <string name="mixer_no_saved_mixes">Todavía no tienes mezclas guardadas</string>
+    <string name="mixer_save_mix">Guardar mezcla</string>
+    <string name="mixer_save">Guardar</string>
+    <string name="mixer_cancel">Cancelar</string>
+    <string name="mixer_mix_name_label">Nombre de la mezcla</string>
+    <string name="mixer_mix_name_hint">p. ej. Lluvia para dormir</string>
+    <string name="mixer_mix_saved">Mezcla guardada: %1$s</string>
+    <string name="mixer_mix_deleted">Mezcla eliminada</string>
+    <string name="mixer_load_mix">Cargar la mezcla %1$s</string>
+    <string name="mixer_delete_mix">Eliminar mezcla</string>
 
     <plurals name="mixer_layer_count">
         <item quantity="one">%d capa</item>

@@ -4,6 +4,7 @@
     <string name="home_greeting_morning">Good morning</string>
     <string name="home_greeting_afternoon">Good afternoon</string>
     <string name="home_greeting_evening">Good evening</string>
+    <string name="home_greeting_night">Time to sleep</string>
     <string name="home_headline">Take a slow\nbreath.</string>
 
     <string name="home_hero_title">Breathe</string>
@@ -32,6 +33,8 @@
 
     <string name="home_sleep_routine">Sleep routine</string>
     <string name="home_sleep_routine_hint">3 min of breathing, then your track</string>
+    <string name="home_sleep_routine_night_hint">Start now: 3 minutes of breathing and then your track.</string>
+    <string name="home_sleep_routine_night_action">Start the routine</string>
 
     <string name="home_favorite_open">Open %1$s</string>
     <string name="home_favorite_play">Play %1$s</string>
@@ -39,8 +42,7 @@
 
     <string name="home_tab_home">Home</string>
     <string name="home_tab_breathe">Breathe</string>
-    <string name="home_tab_meditate">Meditate</string>
-    <string name="home_tab_sounds">Sounds</string>
+    <string name="home_tab_library">Library</string>
 
     <string name="home_player_play">Play</string>
     <string name="home_player_pause">Pause</string>

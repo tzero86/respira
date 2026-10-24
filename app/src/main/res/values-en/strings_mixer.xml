@@ -10,14 +10,26 @@
     <string name="mixer_sleep_timer">Sleep timer</string>
     <string name="mixer_timer_sheet_hint">The mix fades out when the timer ends.</string>
     <string name="mixer_clear">Clear</string>
-    <string name="mixer_off">Off</string>
     <string name="mixer_timer_off">Off</string>
-    <string name="mixer_timer_minutes">%1$d minutes</string>
+    <string name="mixer_timer_minutes_short">%1$d min</string>
+    <string name="mixer_timer_hours">%1$d h</string>
     <string name="mixer_timer_ends_in">Ends in %1$s</string>
     <string name="mixer_play_mix">Play mix</string>
     <string name="mixer_pause_mix">Pause mix</string>
     <string name="mixer_layer_volume">%1$s volume</string>
     <string name="mixer_percent">%1$d%%</string>
+
+    <string name="mixer_saved_mixes">Your mixes</string>
+    <string name="mixer_no_saved_mixes">No saved mixes yet</string>
+    <string name="mixer_save_mix">Save mix</string>
+    <string name="mixer_save">Save</string>
+    <string name="mixer_cancel">Cancel</string>
+    <string name="mixer_mix_name_label">Mix name</string>
+    <string name="mixer_mix_name_hint">e.g. Rain for sleep</string>
+    <string name="mixer_mix_saved">Mix saved: %1$s</string>
+    <string name="mixer_mix_deleted">Mix deleted</string>
+    <string name="mixer_load_mix">Load mix %1$s</string>
+    <string name="mixer_delete_mix">Delete mix</string>
 
     <plurals name="mixer_layer_count">
         <item quantity="one">%d layer</item>

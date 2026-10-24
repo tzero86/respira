@@ -85,6 +85,7 @@ import app.respira.ui.theme.RespiraColors.Aqua
 import app.respira.ui.theme.RespiraColors.Mist
 import app.respira.ui.theme.RespiraColors.SecondaryText
 import app.respira.ui.theme.RespiraColors.TertiaryText
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -145,12 +146,22 @@ fun HomeScreen(
         }
     }
 
-    val greetingRes = remember {
-        when (LocalTime.now().hour) {
-            in 5..11 -> R.string.home_greeting_morning
-            in 12..17 -> R.string.home_greeting_afternoon
-            else -> R.string.home_greeting_evening
+    // Refreshed every minute so the screen switches to its bedtime shape
+    // even if it is left open across the hour.
+    var nowHour by remember { mutableStateOf(LocalTime.now().hour) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L)
+            nowHour = LocalTime.now().hour
         }
+    }
+    val moment = currentMoment(nowHour)
+    val night = moment == HomeMoment.NIGHT
+    val greetingRes = when (moment) {
+        HomeMoment.MORNING -> R.string.home_greeting_morning
+        HomeMoment.AFTERNOON -> R.string.home_greeting_afternoon
+        HomeMoment.EVENING -> R.string.home_greeting_evening
+        HomeMoment.NIGHT -> R.string.home_greeting_night
     }
     val greeting = stringResource(greetingRes)
 
@@ -188,96 +199,86 @@ fun HomeScreen(
 
         Spacer(Modifier.height(26.dp))
 
-        BreatheHero(onClick = onBreathe)
-
-        Spacer(Modifier.height(22.dp))
-
-        resume?.let { target ->
-            ResumeCard(
-                pick = target.pick,
-                positionMs = target.positionMs,
-                onPlay = {
-                    Audio.hub.playTrackFrom(target.pick.meditation.track, target.positionMs)
+        if (night) {
+            SleepRoutineCard(
+                onClick = {
+                    SleepRoutine.request()
+                    onBreathe()
                 },
             )
-            Spacer(Modifier.height(22.dp))
-        }
 
-        tonight?.let { pick ->
-            SectionLabel(stringResource(R.string.home_tonight_label))
-            Spacer(Modifier.height(12.dp))
-            TonightCard(
-                pick = pick,
-                playing = audioState.track?.id == pick.meditation.track.id &&
-                    audioState.trackPlaying,
-                onPlay = {
-                    if (audioState.track?.id == pick.meditation.track.id) {
-                        Audio.hub.toggleTrack()
-                    } else {
-                        Audio.hub.playTrack(pick.meditation.track)
-                    }
-                },
-            )
             Spacer(Modifier.height(22.dp))
-        }
-
-        SectionLabel(stringResource(R.string.home_favorites_label))
-        Spacer(Modifier.height(12.dp))
-        if (favorites.isEmpty()) {
-            FavoritesEmpty(onMeditate = onMeditate)
         } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                favorites.forEach { pick ->
-                    val active = audioState.track?.id == pick.meditation.track.id
-                    FavoriteCard(
-                        pick = pick,
-                        playing = active && audioState.trackPlaying,
-                        onPlay = {
-                            if (active) {
-                                Audio.hub.toggleTrack()
-                            } else {
-                                Audio.hub.playTrack(pick.meditation.track)
-                            }
-                        },
-                    )
-                }
-            }
+            BreatheHero(onClick = onBreathe)
+
+            Spacer(Modifier.height(22.dp))
         }
 
-        Spacer(Modifier.height(12.dp))
-
-        SleepRoutineEntry(
-            onClick = {
-                SleepRoutine.request()
-                onBreathe()
+        ResumeSection(
+            resume = resume,
+            onPlay = { target ->
+                Audio.hub.playTrackFrom(target.pick.meditation.track, target.positionMs)
             },
         )
 
-        Spacer(Modifier.height(22.dp))
-
-        SectionLabel(stringResource(R.string.home_explore_label))
-        Spacer(Modifier.height(12.dp))
-
-        ExploreCard(
-            title = stringResource(R.string.home_card_meditate_title),
-            subtitle = stringResource(R.string.home_card_meditate_subtitle),
-            icon = R.drawable.ic_moon,
-            accent = RespiraColors.Violet,
-            onClick = onMeditate,
+        TonightSection(
+            pick = tonight,
+            playing = audioState.track?.id == tonight?.meditation?.track?.id &&
+                audioState.trackPlaying,
+            onPlay = { pick ->
+                if (audioState.track?.id == pick.meditation.track.id) {
+                    Audio.hub.toggleTrack()
+                } else {
+                    Audio.hub.playTrack(pick.meditation.track)
+                }
+            },
         )
-        Spacer(Modifier.height(12.dp))
-        ExploreCard(
-            title = stringResource(R.string.home_card_sounds_title),
-            subtitle = stringResource(R.string.home_card_sounds_subtitle),
-            icon = R.drawable.ic_cloud_rain,
-            accent = Aqua,
-            onClick = onAmbience,
+
+        FavoritesSection(
+            favorites = favorites,
+            playingTrackId = audioState.track?.id,
+            trackPlaying = audioState.trackPlaying,
+            onPlay = { pick ->
+                if (audioState.track?.id == pick.meditation.track.id) {
+                    Audio.hub.toggleTrack()
+                } else {
+                    Audio.hub.playTrack(pick.meditation.track)
+                }
+            },
+            onMeditate = onMeditate,
         )
+
+        if (!night) {
+            Spacer(Modifier.height(12.dp))
+
+            SleepRoutineEntry(
+                onClick = {
+                    SleepRoutine.request()
+                    onBreathe()
+                },
+            )
+
+            Spacer(Modifier.height(22.dp))
+
+            SectionLabel(stringResource(R.string.home_explore_label))
+            Spacer(Modifier.height(12.dp))
+
+            ExploreCard(
+                title = stringResource(R.string.home_card_meditate_title),
+                subtitle = stringResource(R.string.home_card_meditate_subtitle),
+                icon = R.drawable.ic_moon,
+                accent = RespiraColors.Violet,
+                onClick = onMeditate,
+            )
+            Spacer(Modifier.height(12.dp))
+            ExploreCard(
+                title = stringResource(R.string.home_card_sounds_title),
+                subtitle = stringResource(R.string.home_card_sounds_subtitle),
+                icon = R.drawable.ic_cloud_rain,
+                accent = Aqua,
+                onClick = onAmbience,
+            )
+        }
 
         if (update != null) {
             Spacer(Modifier.height(22.dp))
@@ -318,6 +319,70 @@ fun HomeScreen(
 
     if (dialogOpen) {
         UpdateDialog(onDismiss = { dialogOpen = false })
+    }
+}
+
+@Composable
+private fun ResumeSection(
+    resume: ResumeTarget?,
+    onPlay: (ResumeTarget) -> Unit,
+) {
+    resume?.let { target ->
+        ResumeCard(
+            pick = target.pick,
+            positionMs = target.positionMs,
+            onPlay = { onPlay(target) },
+        )
+        Spacer(Modifier.height(22.dp))
+    }
+}
+
+@Composable
+private fun TonightSection(
+    pick: Pick?,
+    playing: Boolean,
+    onPlay: (Pick) -> Unit,
+) {
+    pick?.let { target ->
+        SectionLabel(stringResource(R.string.home_tonight_label))
+        Spacer(Modifier.height(12.dp))
+        TonightCard(
+            pick = target,
+            playing = playing,
+            onPlay = { onPlay(target) },
+        )
+        Spacer(Modifier.height(22.dp))
+    }
+}
+
+@Composable
+private fun FavoritesSection(
+    favorites: List<Pick>,
+    playingTrackId: String?,
+    trackPlaying: Boolean,
+    onPlay: (Pick) -> Unit,
+    onMeditate: () -> Unit,
+) {
+    SectionLabel(stringResource(R.string.home_favorites_label))
+    Spacer(Modifier.height(12.dp))
+    if (favorites.isEmpty()) {
+        FavoritesEmpty(onMeditate = onMeditate)
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            favorites.forEach { pick ->
+                val active = playingTrackId == pick.meditation.track.id
+                FavoriteCard(
+                    pick = pick,
+                    playing = active && trackPlaying,
+                    onPlay = { onPlay(pick) },
+                )
+            }
+        }
     }
 }
 
@@ -447,6 +512,44 @@ private fun ResumeCard(
                 tint = Aqua,
             )
         }
+    }
+}
+
+@Composable
+private fun SleepRoutineCard(onClick: () -> Unit) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        borderColor = RespiraColors.Violet.copy(alpha = 0.35f),
+        topTint = RespiraColors.Violet,
+        onClick = onClick,
+        contentPadding = PaddingValues(20.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(
+                icon = R.drawable.ic_moon_star,
+                tint = RespiraColors.Violet,
+                size = 52.dp,
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.home_sleep_routine),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Mist,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.home_sleep_routine_night_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SecondaryText,
+                )
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        PillButton(
+            text = stringResource(R.string.home_sleep_routine_night_action),
+            onClick = onClick,
+        )
     }
 }
 
@@ -722,6 +825,18 @@ private fun ExploreCard(
         }
     }
 }
+
+/** What the home screen leads with, based on the time of day. */
+internal enum class HomeMoment { MORNING, AFTERNOON, EVENING, NIGHT }
+
+/** The current moment, so Home can reorder itself for the hour. */
+internal fun currentMoment(hour: Int): HomeMoment =
+    when (hour) {
+        in 5..11 -> HomeMoment.MORNING
+        in 12..17 -> HomeMoment.AFTERNOON
+        in 18..21 -> HomeMoment.EVENING
+        else -> HomeMoment.NIGHT
+    }
 
 private const val RESUME_THRESHOLD_MS = 30_000L
 
