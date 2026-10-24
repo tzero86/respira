@@ -11,10 +11,6 @@ with a fixed seed), so the same source always produces the same audio.
 
 | layer | what it is made of |
 |---|---|
-| `amb_thunder` | a low rumble bed with Poisson-spaced rolls |
-| `amb_wind` | filtered noise through a slowly wandering band |
-| `amb_forest` | a leaf-and-air bed with crickets and distant owls |
-| `amb_birds` | song phrases over a faint air bed |
 | `amb_drone` | a 40–300 Hz harmonic bed |
 
 ## Recorded layers
@@ -22,8 +18,10 @@ with a fixed seed), so the same source always produces the same audio.
 `tools/process_recordings.py` builds these from field recordings. Every source
 below was checked directly against the archive.org item metadata, and every
 one of them is in the **public domain** (CC0 1.0 Public Domain Mark, or a US
-Government work). No attribution is legally required. The credits are kept
-here anyway, because the recorders deserve to be named.
+Government work). The one Commons file was checked on its own file page: it
+carries the `PD-author` category and a public-domain licence template. No
+attribution is legally required. The credits are kept here anyway, because
+the recorders deserve to be named.
 
 | layer | recording | credit | licence | source |
 |---|---|---|---|---|
@@ -32,6 +30,10 @@ here anyway, because the recorders deserve to be named.
 | `amb_ocean` | sea waves, Rewal, Poland | Piotrek Zyla | Public Domain (CC0 1.0 PDM) | https://archive.org/details/aporee_64598_74549 |
 | `amb_fire` | fading campfire, Sasino, Poland | maciej janasik | Public Domain (CC0 1.0 PDM) | https://archive.org/details/aporee_25828_29895 |
 | `amb_stream` | Alpine Stream 2, Hollersbach, Austria | htuggle | Public Domain (CC0 1.0 PDM) | https://archive.org/details/aporee_65017_75100 |
+| `amb_thunder` | Gewitter am Bauhausplatz, Dessau-Roßlau, Germany | oriolus | Public Domain (CC0 1.0 PDM) | https://archive.org/details/aporee_18370_21335 |
+| `amb_wind` | wind through a silver birch tree, Kožmice, Czechia | Peter Cusack | Public Domain (CC0 1.0 PDM) | https://archive.org/details/aporee_64074_73891 |
+| `amb_birds` | nightingale song, Brightling, England | oriolus | Public Domain (CC0 1.0 PDM) | https://archive.org/details/aporee_36705_42063 |
+| `amb_forest` | natural ambience | nille | Public domain (PD-author) | https://commons.wikimedia.org/wiki/File:20090610_0_ambience.ogg |
 
 ### What was done to the recordings
 
@@ -43,7 +45,7 @@ target as the synthetic layers (−23 LUFS) and peak-capped.
 The masters are not in git. To rebuild the recorded layers:
 
 ```sh
-# download the five masters into ~/Downloads/respira_recordings
+# download the masters into ~/Downloads/respira_recordings
 python tools/process_recordings.py
 ```
 

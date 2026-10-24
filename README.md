@@ -25,11 +25,11 @@ updates.
   own at the end.
 - **Soundscapes** — ten seamless nature loops (rain, downpour, thunder, wind, stream,
   ocean, fire, night forest, birds, deep hum) mixed live, six presets, per-layer and
-  master volume, sleep timer. Five of them are real public-domain field recordings
-  and five are built from the physical mechanism that makes the sound (Poisson droplet
-  impacts, crackle trains, bubble resonance, ocean foam). Every layer runs through a
-  synthesized room reverb and is placed on a stereo stage. Named mixes can be saved
-  and reloaded.
+  master volume, sleep timer. Nine of the ten are real public-domain field recordings
+  (rain on leaves, rain on a tent, a thunderstorm, wind through a birch tree, sea waves,
+  a campfire, an alpine stream, nightingale song, night ambience); only the low hum is
+  synthesised. Every layer runs through a room reverb and is placed on a stereo stage.
+  Named mixes can be saved and reloaded.
 - **Three tabs** — Inicio, Respirar and Biblioteca. Biblioteca holds the tracks and the
   sound mixer behind one switch. The mini player opens the full player from anywhere.
 - **A home screen that knows the hour** — after 22:00 it becomes a bedtime screen: the
@@ -119,6 +119,14 @@ python -m http.server 8123 --directory docs
 ```
 
 ## Status
+
+`0.1.0-alpha14` — nine of the ten soundscapes are now real public-domain field
+recordings instead of synthesis; only the low hum is generated. The fire was the
+reason: its crackle band was 94 % silence and every crackle had the same
+timbre, which is a geiger counter rather than a fire. A new measurement
+(`tools/check_layers.py`) checks that each layer has a body, irregular events,
+varied amplitudes and more than one click colour, so the fault cannot come
+back silently.
 
 `0.1.0-alpha13` — the soundscapes were rebuilt a second time, because the
 first rebuild had the right spectrum and still did not sound like anything.

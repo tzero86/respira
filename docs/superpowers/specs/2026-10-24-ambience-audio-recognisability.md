@@ -105,6 +105,73 @@ it does not: it must have a body (`fill`), its events must be irregular
 (`cv`) and of varied amplitude (`spread`). It also fails any layer that
 shows the click-train signature whatever it claims to be.
 
+### 2.5 The measurement that names the fault
+
+A later pass over 226 candidate recordings turned up a measurement the first
+pass had missed, and it is the one that actually names the complaint.
+
+**`bright_cv` — the spread of the *colour* of the individual events.** Each
+event is isolated in the 1.5–10 kHz band and its spectral centroid is
+measured on its own; the figure is the standard deviation over the mean of
+those centroids.
+
+A geiger counter repeats one click, so every click has the same spectrum.
+A real fire crackles differently every time, so each crackle has its own
+colour. Nothing about the spacing or the loudness matters — the *timbre* is
+what gives it away:
+
+| | bright_cv |
+|---|---|
+| synthetic fire (alpha12) | **0.037** — one click repeated |
+| real fires | 0.078 – 0.166 |
+| synthetic ocean (alpha12) | 0.028 |
+| synthetic forest (alpha12) | 0.035 |
+
+The classical metrics did not separate them: the alpha12 fire had an
+inter-onset-interval CV of 1.14 and an amplitude spread of 10.5, both of
+which look healthy, because the Poisson trains were irregular enough. The
+colour was the tell.
+
+`tools/check_layers.py` now measures it too, and it is the check that fails
+the old fire:
+
+```
+amb_fire (alpha12)  spread=2.65  bcv=0.070   FAIL
+amb_fire (alpha14)  spread=4.94  bcv=0.143   OK
+```
+
+### 2.6 Four more layers became recordings
+
+With 226 candidates measured, the four layers that had no clean-licence
+recording in the first pass turned out to have some. They are all public
+domain, checked the same way:
+
+| layer | recording | credit |
+|---|---|---|
+| thunder | Gewitter am Bauhausplatz, Dessau-Roßlau | oriolus |
+| wind | wind through a silver birch tree, Kožmice | Peter Cusack |
+| birds | nightingale song, Brightling | oriolus |
+| forest | natural ambience | nille (PD-author) |
+
+Only the low hum is still synthesised now.
+
+| layer | bright_cv before | after |
+|---|---|---|
+| fire | 0.037 | **0.143** |
+| ocean | 0.028 | **0.103** |
+| forest | 0.035 | **0.161** |
+| birds | 0.099 | **0.223** |
+| wind | 0.034 | **0.092** |
+| rain | 0.106 | 0.083 |
+| rain_heavy | 0.095 | 0.088 |
+| stream | 0.024 | 0.076 |
+| thunder | 0.200 | 0.037 |
+| drone | 0.058 | 0.050 |
+
+Thunder is the one that went *down*: the old synthetic rolls were already
+well spread, and the recording has a steadier, lower rumble under them. It
+was never the weak layer the complaint was about.
+
 ## 3. Before and after
 
 ### The fire layer
@@ -188,14 +255,13 @@ The release build now shows `renderer(paused(0))` with the stereo output at
 
 ## 5. What is still open
 
-* **thunder, birds, forest and drone are still synthetic.** No clean-licence
-  recording was found for them: every candidate was either CC BY-NC or
-  CC BY-ND, contained speech, or was too short. They pass the checks, but
-  they are the weakest layers.
-* **The sea, the stream and the rain are now different recordings of
-  different places**, so mixing them is a montage rather than a place.
+* **Only the low hum is still synthetic.** Every other layer is a recording.
+* **The sea, the stream and the rain are recordings of different places**, so
+  mixing them is a montage rather than a place.
 * **Two loop variants per layer** would remove the last of the repetition.
   Not done: it doubles the asset size and the loop is already 40–120 s.
+* **The ambience set is 13.3 MB**, up from 4.6 MB before alpha13. The loops
+  are longer and there are more of them; the APK grew by about 3 MB.
 * **Subjective A/B is still the author's job.** Every claim above is a
   measurement; whether the fire now sounds like her fireplace is for the
   person who knows what her fireplace sounds like.
