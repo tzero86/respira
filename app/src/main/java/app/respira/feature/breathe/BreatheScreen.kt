@@ -62,6 +62,7 @@ import app.respira.R
 import app.respira.ui.components.GhostPill
 import app.respira.ui.components.PillButton
 import app.respira.ui.components.SoftIconButton
+import app.respira.feature.sleep.SleepRoutine
 import app.respira.ui.components.formatDuration
 import app.respira.ui.theme.RespiraColors
 import java.text.NumberFormat
@@ -81,6 +82,8 @@ fun BreatheScreen(
     var hapticsOn by rememberSaveable { mutableStateOf(true) }
     var soundOn by rememberSaveable { mutableStateOf(true) }
     var showDurations by remember { mutableStateOf(false) }
+    var routinePending by remember { mutableStateOf(false) }
+    var routineTrackStarted by remember { mutableStateOf(false) }
 
     val sessionMinutes = if (sessionKey < 0) null else sessionKey
     val engine = remember {
@@ -88,6 +91,25 @@ fun BreatheScreen(
             pattern = BreathPatterns.firstOrNull { it.id == patternId } ?: BreathPatterns.first(),
             minutes = sessionMinutes,
         )
+    }
+
+    fun startRoutine() {
+        val routine = BreathPatterns.firstOrNull { it.id == SleepRoutine.PatternId }
+            ?: BreathPatterns.first()
+        patternId = routine.id
+        sessionKey = SleepRoutine.Minutes
+        engine.selectPattern(routine)
+        engine.selectSession(SleepRoutine.Minutes)
+        routinePending = true
+        routineTrackStarted = false
+        SleepRoutine.start(routine.id, SleepRoutine.Minutes)
+        engine.begin()
+        feedback.startSession(hapticsOn, soundOn)
+    }
+
+    LaunchedEffect(Unit) {
+        if (!SleepRoutine.consumeRequest()) return@LaunchedEffect
+        startRoutine()
     }
 
     LaunchedEffect(engine.runId) {
@@ -102,6 +124,11 @@ fun BreatheScreen(
             when (val tick = engine.update(elapsed)) {
                 BreathTick.Complete -> {
                     feedback.sessionComplete(hapticsOn, soundOn)
+                    if (routinePending) {
+                        routinePending = false
+                        SleepRoutine.onSessionComplete(context)
+                        routineTrackStarted = SleepRoutine.trackStarted.value
+                    }
                     break
                 }
                 is BreathTick.PhaseChanged -> feedback.phaseChanged(hapticsOn, soundOn)
@@ -286,6 +313,11 @@ fun BreatheScreen(
                 BreathStatus.Idle -> IdleSummary(engine.pattern, engine.sessionMinutes)
                 BreathStatus.Complete -> CompletionSummary(
                     elapsedSeconds = engine.elapsedSeconds,
+                    note = if (routineTrackStarted) {
+                        stringResource(R.string.sleep_routine_track_starting)
+                    } else {
+                        null
+                    },
                     onAgain = begin,
                     onDone = exit,
                 )
@@ -322,6 +354,24 @@ fun BreatheScreen(
                     )
                 }
             }
+
+            Spacer(Modifier.height(10.dp))
+
+            GhostPill(
+                text = stringResource(R.string.sleep_routine_action),
+                onClick = { startRoutine() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 44.dp),
+                leading = {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_moon_star),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = RespiraColors.Violet,
+                    )
+                },
+            )
 
             Spacer(Modifier.height(18.dp))
 
@@ -444,6 +494,7 @@ private fun ActiveSummary(
 @Composable
 private fun CompletionSummary(
     elapsedSeconds: Double,
+    note: String?,
     onAgain: () -> Unit,
     onDone: () -> Unit,
 ) {
@@ -463,6 +514,15 @@ private fun CompletionSummary(
             color = RespiraColors.SecondaryText,
             textAlign = TextAlign.Center,
         )
+        if (note != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = note,
+                style = MaterialTheme.typography.bodyMedium,
+                color = RespiraColors.Aqua,
+                textAlign = TextAlign.Center,
+            )
+        }
         Spacer(Modifier.height(14.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),

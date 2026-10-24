@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sleep_routine_action">Bedtime routine</string>
+    <string name="sleep_routine_hint">3 minutes of 4-7-8, then your track</string>
+    <string name="sleep_routine_track_starting">Your track is starting</string>
+    <string name="sleep_routine_no_track">All done. Enjoy the calm.</string>
+</resources>

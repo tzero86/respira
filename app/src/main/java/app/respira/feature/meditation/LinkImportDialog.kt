@@ -58,7 +58,9 @@ import app.respira.ui.components.PillButton
 import app.respira.ui.components.SoftIconButton
 import app.respira.ui.components.formatDuration
 import app.respira.ui.theme.RespiraColors
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 
 @Composable
 internal fun LinkImportDialog(
@@ -70,17 +72,22 @@ internal fun LinkImportDialog(
     var url by rememberSaveable { mutableStateOf("") }
     var state by remember { mutableStateOf<LinkState>(LinkState.Idle) }
     var previous by remember { mutableStateOf<LinkState?>(null) }
+    var quality by remember { mutableStateOf(ImportPreferences.quality(context)) }
+    var inspection by remember { mutableStateOf<Job?>(null) }
     val download by Downloads.state.collectAsStateWithLifecycle()
     var lastDownload by remember { mutableStateOf(download) }
 
     fun analyze() {
         val value = url.trim()
-        if (value.isEmpty() || state is LinkState.Inspecting || download is DownloadState.Active) return
+        if (value.isEmpty() || download is DownloadState.Active) return
+        val editedTitle = (state as? LinkState.Direct)?.title
+        inspection?.cancel()
         state = LinkState.Inspecting
-        scope.launch {
+        inspection = scope.launch {
             val result = inspectLink(context, value)
+            if (!isActive) return@launch
             state = when (result) {
-                is LinkInspection.Audio -> LinkState.Direct(result, result.title)
+                is LinkInspection.Audio -> LinkState.Direct(result, editedTitle ?: result.title)
                 is LinkInspection.Feed -> LinkState.Feed(result)
                 is LinkInspection.Unsupported -> LinkState.Unsupported(result.reason)
                 is LinkInspection.Failure -> LinkState.Failed(result.reason)
@@ -93,6 +100,13 @@ internal fun LinkImportDialog(
         previous = restore
         state = restore
         Downloads.start(context, next.source, next.title)
+    }
+
+    fun selectQuality(next: YouTubeQuality) {
+        if (quality == next) return
+        quality = next
+        ImportPreferences.setQuality(context, next)
+        if (url.isNotBlank() && download !is DownloadState.Active) analyze()
     }
 
     LaunchedEffect(download) {
@@ -169,27 +183,55 @@ internal fun LinkImportDialog(
                     }
 
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            GhostPill(
-                                text = stringResource(R.string.med_link_paste),
-                                onClick = {
-                                    val clip = readClipboard(context)
-                                    if (!clip.isNullOrBlank()) {
-                                        url = clip
-                                        state = LinkState.Idle
-                                    }
-                                },
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                GhostPill(
+                                    text = stringResource(R.string.med_link_paste),
+                                    onClick = {
+                                        val clip = readClipboard(context)
+                                        if (!clip.isNullOrBlank()) {
+                                            url = clip
+                                            state = LinkState.Idle
+                                        }
+                                    },
+                                )
+                                Spacer(Modifier.weight(1f))
+                                PillButton(
+                                    text = stringResource(R.string.med_link_analyze),
+                                    onClick = { analyze() },
+                                    enabled = url.isNotBlank() && !busy,
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.storage_quality_label),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = RespiraColors.TertiaryText,
                             )
-                            Spacer(Modifier.weight(1f))
-                            PillButton(
-                                text = stringResource(R.string.med_link_analyze),
-                                onClick = { analyze() },
-                                enabled = url.isNotBlank() && !busy,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                GhostPill(
+                                    text = stringResource(R.string.storage_quality_light),
+                                    onClick = { selectQuality(YouTubeQuality.LIGHT) },
+                                    selected = quality == YouTubeQuality.LIGHT,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 44.dp),
+                                )
+                                GhostPill(
+                                    text = stringResource(R.string.storage_quality_high),
+                                    onClick = { selectQuality(YouTubeQuality.HIGH) },
+                                    selected = quality == YouTubeQuality.HIGH,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 44.dp),
+                                )
+                            }
                         }
                     }
 

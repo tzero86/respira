@@ -24,6 +24,15 @@
     <string name="home_favorites_empty_body">Marca con un corazón las pistas que te gusten y aparecerán aquí.</string>
     <string name="home_tonight_label">Para esta noche</string>
     <string name="home_tonight_action">Poner</string>
+
+    <string name="home_resume_sleeping_title">Seguir durmiendo</string>
+    <string name="home_resume_listen_title">Volver a escuchar</string>
+    <string name="home_resume_from">desde %1$s</string>
+    <string name="home_resume_play">Continuar %1$s</string>
+
+    <string name="home_sleep_routine">Rutina para dormir</string>
+    <string name="home_sleep_routine_hint">3 min de respiración y luego tu pista</string>
+
     <string name="home_favorite_open">Abrir %1$s</string>
     <string name="home_favorite_play">Reproducir %1$s</string>
     <string name="home_favorite_pause">Pausar %1$s</string>

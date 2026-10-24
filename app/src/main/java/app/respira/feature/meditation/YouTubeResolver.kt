@@ -18,6 +18,9 @@ internal data class YouTubeAudio(
     val artworkUrl: String? = null,
 )
 
+/** Which YouTube stream a link import should take. */
+internal enum class YouTubeQuality { LIGHT, HIGH }
+
 internal class YouTubeUnavailableException(status: String) :
     IOException("YouTube video unavailable: $status")
 
@@ -38,9 +41,10 @@ internal object YouTubeResolver {
     private const val READ_TIMEOUT_MS = 20_000
     private const val MAX_REDIRECTS = 5
     private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
-    private const val PREFERRED_ITAG = 140
-    private const val FALLBACK_ITAG = 251
     private const val VISITOR_TTL_MS = 30 * 60 * 1000L
+
+    private val LIGHT_ITAGS = listOf(600, 599, 249, 139)
+    private val HIGH_ITAGS = listOf(140, 251, 600, 599)
 
     @Volatile private var cachedVisitor: Pair<String, Long>? = null
 
@@ -128,18 +132,21 @@ internal object YouTubeResolver {
         return raw.trim().takeIf { VIDEO_ID.matches(it) }
     }
 
-    fun resolve(videoId: String): Result<YouTubeAudio> = try {
-        Result.success(resolveOrThrow(videoId))
+    fun resolve(videoId: String, quality: YouTubeQuality): Result<YouTubeAudio> = try {
+        Result.success(resolveOrThrow(videoId, quality))
     } catch (error: IOException) {
         Result.failure(error)
     } catch (error: Exception) {
         Result.failure(IOException(error.message ?: "YouTube resolve failed", error))
     }
 
-    private fun resolveOrThrow(videoId: String): YouTubeAudio {
+    private fun resolveOrThrow(videoId: String, quality: YouTubeQuality): YouTubeAudio {
         val visitor = visitorData()
         var lastStatus: String? = null
         var lastError: IOException? = null
+        var details: JSONObject? = null
+        val candidates = ArrayList<Candidate>()
+        val preferred = preferredItags(quality)
         for (client in CLIENTS) {
             val payload = try {
                 player(videoId, client, visitor)
@@ -154,15 +161,24 @@ internal object YouTubeResolver {
                 lastStatus = status.ifBlank { "ERROR" }
                 continue
             }
-            try {
-                return parse(payload, videoId)
-            } catch (error: IOException) {
-                lastError = error
+            val formats = payload.optJSONObject("streamingData")?.optJSONArray("adaptiveFormats")
+            if (formats == null) {
+                lastError = IOException("Missing audio formats")
+                continue
             }
+            if (details == null) details = payload.optJSONObject("videoDetails")
+            candidates += candidatesOf(formats)
+            // Clients publish different itags, so keep asking until the best
+            // stream of the tier shows up.
+            if (candidates.any { it.itag == preferred.first() }) break
         }
-        throw lastStatus?.let { YouTubeUnavailableException(it) }
-            ?: lastError
-            ?: IOException("YouTube player request failed")
+        val chosen = selectAudio(candidates, quality)
+        if (chosen == null) {
+            throw lastStatus?.let { YouTubeUnavailableException(it) }
+                ?: lastError
+                ?: IOException("No audio stream")
+        }
+        return buildAudio(videoId, details, chosen)
     }
 
     private fun player(
@@ -268,20 +284,20 @@ internal object YouTubeResolver {
             .toString()
     }
 
-    private fun parse(payload: JSONObject, videoId: String): YouTubeAudio {
-        val details = payload.optJSONObject("videoDetails")
-            ?: throw IOException("Missing video details")
-        val formats = payload.optJSONObject("streamingData")?.optJSONArray("adaptiveFormats")
-            ?: throw IOException("Missing audio formats")
-        val chosen = selectAudio(formats) ?: throw IOException("No audio stream")
-        val lengthSeconds = details.optString("lengthSeconds").toLongOrNull() ?: -1L
+    private fun buildAudio(
+        videoId: String,
+        details: JSONObject?,
+        chosen: Candidate,
+    ): YouTubeAudio {
+        val videoDetails = details ?: JSONObject()
+        val lengthSeconds = videoDetails.optString("lengthSeconds").toLongOrNull() ?: -1L
         return YouTubeAudio(
             streamUrl = chosen.url,
-            title = details.optString("title").trim().ifBlank { videoId },
+            title = videoDetails.optString("title").trim().ifBlank { videoId },
             sizeBytes = chosen.contentLength,
             durationMs = (lengthSeconds * 1000L).takeIf { lengthSeconds > 0L },
             mimeType = chosen.mimeType,
-            artworkUrl = thumbnailUrl(details),
+            artworkUrl = thumbnailUrl(videoDetails),
         )
     }
 
@@ -306,7 +322,12 @@ internal object YouTubeResolver {
         return best
     }
 
-    private fun selectAudio(formats: JSONArray): Candidate? {
+    private fun preferredItags(quality: YouTubeQuality): List<Int> = when (quality) {
+        YouTubeQuality.LIGHT -> LIGHT_ITAGS
+        YouTubeQuality.HIGH -> HIGH_ITAGS
+    }
+
+    private fun candidatesOf(formats: JSONArray): List<Candidate> {
         val candidates = ArrayList<Candidate>(formats.length())
         for (index in 0 until formats.length()) {
             val format = formats.optJSONObject(index) ?: continue
@@ -322,9 +343,25 @@ internal object YouTubeResolver {
                 mimeType = mime,
             )
         }
-        return candidates.firstOrNull { it.itag == PREFERRED_ITAG }
-            ?: candidates.firstOrNull { it.itag == FALLBACK_ITAG }
-            ?: candidates.maxByOrNull { it.bitrate }
+        return candidates
+    }
+
+    private fun selectAudio(candidates: List<Candidate>, quality: YouTubeQuality): Candidate? {
+        if (candidates.isEmpty()) return null
+        for (itag in preferredItags(quality)) {
+            candidates.firstOrNull { it.itag == itag }?.let { return it }
+        }
+        val sized = candidates.filter { it.contentLength != null }
+        val bySizeThenBitrate = Comparator<Candidate> { left, right ->
+            val size = left.contentLength!!.compareTo(right.contentLength!!)
+            if (size != 0) size else left.bitrate.compareTo(right.bitrate)
+        }
+        return when (quality) {
+            YouTubeQuality.LIGHT ->
+                sized.minWithOrNull(bySizeThenBitrate) ?: candidates.minByOrNull { it.bitrate }
+            YouTubeQuality.HIGH ->
+                sized.maxWithOrNull(bySizeThenBitrate) ?: candidates.maxByOrNull { it.bitrate }
+        }
     }
 
     private fun directUrl(format: JSONObject): String? {

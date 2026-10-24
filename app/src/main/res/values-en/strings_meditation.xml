@@ -37,6 +37,11 @@
     <string name="med_sleep_timer_remaining">Sleep timer · %1$s</string>
     <string name="med_unknown_duration">—</string>
 
+    <string name="med_auto_sleep_end">End of track · %1$s</string>
+    <string name="med_auto_sleep_off">No fade</string>
+    <string name="med_auto_sleep_toggle">Fade out at the end of the track</string>
+    <string name="med_resume_position_at">Continue · %1$s</string>
+
     <string name="med_track_still_water">Still Water</string>
     <string name="med_track_still_water_subtitle">Warm pads and slow bells</string>
     <string name="med_track_night_sky">Night Sky</string>

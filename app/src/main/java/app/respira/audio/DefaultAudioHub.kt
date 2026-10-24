@@ -53,10 +53,17 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
     private var focusHeld = false
     private var duckGain = 1f
     private var timerGain = 1f
+    private var fadeGain = 1f
+    private var autoSleepGain = 1f
     private var focusPausedTrack = false
     private var focusPausedLayers = false
     private var focusLossPaused = false
     private var timerJob: Job? = null
+    private var fadeInJob: Job? = null
+    private var autoSleepJob: Job? = null
+    private var autoSleepEnabled = true
+    private var autoSleepFadeStartMs = -1L
+    private var lastRememberedAtMs = 0L
     private var serviceStartPending = false
     private var serviceStopScheduled = false
     private var serviceStopIssued = false
@@ -91,7 +98,10 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
                     durationMs = duration ?: it.durationMs,
                 )
             }
-            if (player.playWhenReady) mainHandler.postDelayed(this, POSITION_INTERVAL_MS)
+            if (player.playWhenReady) {
+                rememberPositionPeriodically(player.currentPosition)
+                mainHandler.postDelayed(this, POSITION_INTERVAL_MS)
+            }
         }
     }
 
@@ -107,11 +117,13 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
             } else {
                 updateTrackFlags()
                 updateDuration()
+                armAutoSleepIfNeeded()
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
             stopTicker()
+            trackPlayer?.let { rememberStoppedPosition(it) }
             updateState { it.copy(trackPlaying = false) }
             syncAudibility()
         }
@@ -167,6 +179,9 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
             updateState { it.copy(trackPlaying = true) }
             startTicker()
         } else {
+            startFadeIn()
+            lastRememberedAtMs = 0L
+            cancelAutoSleep()
             player.setMediaItem(track.toMediaItem())
             player.prepare()
             player.playWhenReady = true
@@ -180,6 +195,36 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
             }
             startTicker()
         }
+        focusPausedTrack = false
+        focusLossPaused = focusPausedLayers
+        applyTrackVolume()
+        syncAudibility()
+    }
+
+    override fun playTrackFrom(track: AudioTrack, positionMs: Long) = onMain {
+        val player = player()
+        val known = track.durationMs.takeIf { it > 0 }
+            ?: _state.value.durationMs.takeIf { _state.value.track?.id == track.id && it > 0 }
+            ?: 0L
+        // Imported tracks report no duration up front, so trust the player to
+        // clamp instead of throwing the position away.
+        val target = if (known > 0L) positionMs.coerceIn(0L, known) else positionMs.coerceAtLeast(0L)
+        startFadeIn()
+        lastRememberedAtMs = 0L
+        cancelAutoSleep()
+        player.setMediaItem(track.toMediaItem())
+        player.prepare()
+        if (target > 0L) player.seekTo(target)
+        player.playWhenReady = true
+        updateState {
+            it.copy(
+                track = track,
+                trackPlaying = true,
+                positionMs = target,
+                durationMs = known,
+            )
+        }
+        startTicker()
         focusPausedTrack = false
         focusLossPaused = focusPausedLayers
         applyTrackVolume()
@@ -211,6 +256,7 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         player.play()
         updateState { it.copy(trackPlaying = true) }
         startTicker()
+        armAutoSleepIfNeeded()
         syncAudibility()
     }
 
@@ -222,6 +268,7 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         val target = positionMs.coerceIn(0L, upperBound)
         player.seekTo(target)
         updateState { it.copy(positionMs = target) }
+        armAutoSleepIfNeeded()
     }
 
     override fun stopTrack() = onMain { stopTrackInternal() }
@@ -346,6 +393,15 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         }
     }
 
+    override fun setAutoSleepToEndOfTrack(enabled: Boolean) = onMain {
+        autoSleepEnabled = enabled
+        if (!enabled) {
+            cancelAutoSleep()
+            return@onMain
+        }
+        armAutoSleepIfNeeded()
+    }
+
     override fun stopAll() = onMain { stopAllInternal() }
 
     private fun player(): ExoPlayer = trackPlayer ?: ExoPlayer.Builder(context)
@@ -399,29 +455,133 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         mainHandler.removeCallbacks(ticker)
     }
 
+    private fun cancelAutoSleep() {
+        autoSleepJob?.cancel()
+        autoSleepJob = null
+        autoSleepFadeStartMs = -1L
+        if (autoSleepGain != 1f) {
+            autoSleepGain = 1f
+            applyAllGainsImmediate()
+        }
+        updateState { if (it.autoSleepEndMs != null) it.copy(autoSleepEndMs = null) else it }
+    }
+
+    /** Ramps the track volume up from silence over [FADE_IN_MS]. */
+    private fun startFadeIn() {
+        fadeInJob?.cancel()
+        fadeGain = 0f
+        applyTrackVolume()
+        val steps = (FADE_IN_MS / FADE_STEP_MS).toInt().coerceAtLeast(1)
+        fadeInJob = scope.launch {
+            repeat(steps) { index ->
+                fadeGain = (index + 1f) / steps
+                applyTrackVolume()
+                delay(FADE_STEP_MS)
+            }
+            fadeGain = 1f
+            applyTrackVolume()
+        }
+    }
+
+    /**
+     * Arms the automatic fade that lets the track end softly. It runs in its
+     * own job so the user sleep timer stays independent of it.
+     */
+    private fun armAutoSleepIfNeeded() {
+        if (!autoSleepEnabled) return
+        if (autoSleepGain < 1f) return
+        val player = trackPlayer ?: return
+        if (!player.playWhenReady) return
+        val duration = player.duration.takeIf { it > 0 && it != C.TIME_UNSET } ?: return
+        if (duration <= AUTO_SLEEP_MIN_TRACK_MS) return
+        val remaining = duration - SLEEP_FADE_MS - player.currentPosition
+        if (remaining <= 0L) return
+        val fadeStart = System.currentTimeMillis() + remaining
+        if (autoSleepJob != null && autoSleepFadeStartMs == fadeStart) return
+        autoSleepJob?.cancel()
+        autoSleepJob = null
+        autoSleepFadeStartMs = fadeStart
+        updateState { it.copy(autoSleepEndMs = fadeStart + SLEEP_FADE_MS) }
+        autoSleepJob = scope.launch {
+            delay(remaining)
+            autoSleepFadeOut()
+        }
+    }
+
+    private suspend fun autoSleepFadeOut() {
+        val player = trackPlayer
+        if (player == null || !player.playWhenReady) {
+            cancelAutoSleep()
+            return
+        }
+        updateState { it.copy(autoSleepEndMs = null) }
+        val steps = (SLEEP_FADE_MS / SLEEP_FADE_STEP_MS).toInt().coerceAtLeast(1)
+        repeat(steps) { index ->
+            autoSleepGain = 1f - (index + 1f) / steps
+            applyAllGainsImmediate()
+            delay(SLEEP_FADE_STEP_MS)
+        }
+        autoSleepGain = 1f
+        autoSleepJob = null
+        _state.value.track?.let { track -> PlaybackMemory.remember(context, track.id, 0L) }
+        stopAllInternal(rememberPosition = false)
+    }
+
+    private fun rememberPositionPeriodically(positionMs: Long) {
+        val now = System.currentTimeMillis()
+        if (now - lastRememberedAtMs < REMEMBER_INTERVAL_MS) return
+        lastRememberedAtMs = now
+        rememberPositionNow(positionMs)
+    }
+
+    private fun rememberPositionNow(positionMs: Long) {
+        val track = _state.value.track ?: return
+        PlaybackMemory.remember(context, track.id, positionMs)
+    }
+
+    /** Remembers where the player stopped; a finished track restarts from zero. */
+    private fun rememberStoppedPosition(player: ExoPlayer) {
+        if (player.playbackState == Player.STATE_ENDED) {
+            _state.value.track?.let { PlaybackMemory.remember(context, it.id, 0L) }
+        } else {
+            rememberPositionNow(player.currentPosition.coerceAtLeast(0L))
+        }
+    }
+
     private fun pauseTrackInternal() {
         val player = trackPlayer
         if (player != null) {
             player.pause()
             if (_state.value.track != null) {
+                val position = player.currentPosition.coerceAtLeast(0L)
                 updateState {
                     it.copy(
                         trackPlaying = false,
-                        positionMs = player.currentPosition.coerceAtLeast(0L),
+                        positionMs = position,
                     )
                 }
+                rememberPositionNow(position)
             }
         }
+        cancelAutoSleep()
     }
 
     private fun stopTrackInternal() {
         trackPlayer?.let {
+            rememberStoppedPosition(it)
             it.stop()
             it.clearMediaItems()
         }
         stopTicker()
+        cancelAutoSleep()
         updateState {
-            it.copy(track = null, trackPlaying = false, positionMs = 0L, durationMs = 0L)
+            it.copy(
+                track = null,
+                trackPlaying = false,
+                positionMs = 0L,
+                durationMs = 0L,
+                autoSleepEndMs = null,
+            )
         }
         syncAudibility()
     }
@@ -522,7 +682,7 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
     }
 
     private fun layerGain(target: Float): Float = (
-        target * _state.value.masterVolume * duckGain * timerGain
+        target * _state.value.masterVolume * duckGain * timerGain * autoSleepGain
         ).coerceIn(0f, 1f)
 
     private fun updateVoiceGains(durationMs: Long = MASTER_FADE_MS) {
@@ -538,7 +698,9 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
 
     private fun applyTrackVolume() {
         val player = trackPlayer ?: return
-        player.volume = (_state.value.masterVolume * duckGain * timerGain).coerceIn(0f, 1f)
+        player.volume = (
+            _state.value.masterVolume * duckGain * timerGain * fadeGain * autoSleepGain
+            ).coerceIn(0f, 1f)
     }
 
     private fun applyAllGainsImmediate() {
@@ -563,13 +725,21 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         stopAllInternal()
     }
 
-    private fun stopAllInternal() {
+    private fun stopAllInternal(rememberPosition: Boolean = true) {
         timerJob?.cancel()
         timerJob = null
         timerGain = 1f
         duckGain = 1f
+        fadeInJob?.cancel()
+        fadeInJob = null
+        fadeGain = 1f
+        autoSleepJob?.cancel()
+        autoSleepJob = null
+        autoSleepFadeStartMs = -1L
+        autoSleepGain = 1f
         clearFocusResume()
         trackPlayer?.let {
+            if (rememberPosition) rememberStoppedPosition(it)
             it.stop()
             it.clearMediaItems()
         }
@@ -650,6 +820,7 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         player.play()
         startTicker()
         if (!_state.value.trackPlaying) updateState { it.copy(trackPlaying = true) }
+        armAutoSleepIfNeeded()
     }
 
     private fun resumeLayersInternal() {
@@ -744,8 +915,11 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
         const val MASTER_FADE_MS = 200L
         const val DUCK_FADE_MS = 200L
         const val FADE_STEP_MS = 30L
+        const val FADE_IN_MS = 3_000L
         const val SLEEP_FADE_MS = 15_000L
         const val SLEEP_FADE_STEP_MS = 250L
+        const val AUTO_SLEEP_MIN_TRACK_MS = 60_000L
+        const val REMEMBER_INTERVAL_MS = 5_000L
         const val SILENT_THRESHOLD = 0.001f
         const val DUCK_GAIN = 0.25f
         const val SERVICE_STOP_DELAY_MS = 1_500L

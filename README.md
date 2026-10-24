@@ -18,6 +18,11 @@ updates.
 - **Your pick and your favorites** — heart any track for the quick collection at the
   top of Home, and set one as preferred to take the big "Para esta noche" card.
   Library removals clear both markers.
+- **Bedtime routine** — three minutes of 4-7-8 breathing, then her preferred track
+  starts on its own. One tap from Home or from the Breathe screen.
+- **Keep sleeping** — Home shows the last track with the position it stopped at, so
+  it resumes there instead of from the start. Tracks fade in, and fade out on their
+  own at the end.
 - **Soundscapes** — ten seamless nature loops (rain, storm, wind, stream, ocean, fire,
   night forest, birds, deep hum) mixed live, six presets, per-layer and master volume,
   sleep timer.
@@ -36,6 +41,9 @@ Meditate accepts audio four ways:
    YouTube video (watch, `youtu.be`, Shorts, embed, live) or a podcast RSS/Atom feed,
    pick an episode, and the app downloads it into private app storage with progress,
    cancellation and a 300 MB cap. The title can be edited before downloading.
+   YouTube links pick a size: **Ahorrar espacio** takes the smallest audio stream
+   (roughly 30 kbps, so a three-hour video is around 50 MB) and **Máxima calidad**
+   keeps the original bitrate (around 190 MB for the same video).
 4. **Share** — share an audio file from any app into Respira; it is copied into the
    library and appears on the Meditate screen.
 
@@ -92,6 +100,15 @@ language. English lives in `values-en/`. The in-app switcher is in the Home head
 persists across launches.
 
 ## Status
+
+`0.1.0-alpha11` — a bedtime routine (3 minutes of 4-7-8, then her preferred
+track), a "Seguir durmiendo" card on Home that resumes where playback stopped, a
+fade-in on every track and an automatic fade-out at the end of the track, and a
+storage report for the library with a cleanup action.
+
+Downloads now come in two sizes: "Ahorrar espacio" takes the small Opus stream
+(a 3-hour video is ~50 MB instead of ~190 MB) and "Máxima calidad" keeps the
+original bitrate.
 
 `0.1.0-alpha10` — YouTube imports keep their thumbnail as cover art, tracks can be
 hearted into a quick collection that leads Home, one track can be preferred to take the

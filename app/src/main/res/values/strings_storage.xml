@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="storage_quality_label">Calidad de descarga</string>
+    <string name="storage_quality_light">Ahorrar espacio</string>
+    <string name="storage_quality_high">Máxima calidad</string>
+
+    <string name="storage_usage">Almacenamiento: %1$s</string>
+    <string name="storage_usage_tracks">%1$d pistas · %2$s</string>
+    <string name="storage_leftover">Descargas a medias: %1$s</string>
+    <string name="storage_clean">Limpiar</string>
+    <string name="storage_cleaned">Se liberaron %1$s</string>
+    <string name="storage_nothing_to_clean">No hay nada que limpiar</string>
+</resources>

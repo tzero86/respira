@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +39,7 @@ import app.respira.R
 import app.respira.audio.Audio
 import app.respira.audio.AudioState
 import app.respira.audio.AudioTrack
+import app.respira.audio.PlaybackMemory
 import app.respira.ui.components.AuroraBackdrop
 import app.respira.ui.components.GhostPill
 import app.respira.ui.components.SectionLabel
@@ -49,6 +51,9 @@ import kotlin.math.abs
 
 private val sleepTimerOptions = listOf(15, 30, 45, 60)
 
+private const val RESUME_THRESHOLD_MS = 30_000L
+private const val AUTO_SLEEP_MIN_DURATION_MS = 60_000L
+
 @Composable
 internal fun MeditationPlayerDialog(
     track: AudioTrack,
@@ -57,10 +62,11 @@ internal fun MeditationPlayerDialog(
     onClose: () -> Unit,
 ) {
     val hub = Audio.hub
+    val context = LocalContext.current
     val durationMs = if (state.durationMs > 0) state.durationMs else track.durationMs
     var scrubFraction by remember(track.id) { mutableStateOf<Float?>(null) }
 
-    val nowMs = rememberNowMs(state.sleepTimerEndMs)
+    val nowMs = rememberNowMs(state.sleepTimerEndMs, state.autoSleepEndMs)
     val sleepRemainingMs = state.sleepTimerEndMs
         ?.let { (it - nowMs).coerceAtLeast(0L) }
         ?.takeIf { it > 0L }
@@ -69,11 +75,24 @@ internal fun MeditationPlayerDialog(
         sleepTimerOptions.minByOrNull { abs(it - remainingMinutes) }
     }
 
+    val autoSleepRemainingMs = state.autoSleepEndMs
+        ?.let { (it - nowMs).coerceAtLeast(0L) }
+        ?.takeIf { it > 0L }
+    val autoSleepAvailable = durationMs > AUTO_SLEEP_MIN_DURATION_MS ||
+        state.autoSleepEndMs != null
+
     val elapsedMs = scrubFraction?.let { (it * durationMs).toLong() } ?: state.positionMs
     val fraction = if (durationMs > 0L) {
         (elapsedMs.toFloat() / durationMs).coerceIn(0f, 1f)
     } else {
         0f
+    }
+
+    val savedPosition = remember(track.id, state.trackPlaying, state.positionMs / 5_000L) {
+        PlaybackMemory.position(context, track.id)
+    }
+    val resumePosition = savedPosition.takeIf {
+        it > RESUME_THRESHOLD_MS && (durationMs <= 0L || it < durationMs)
     }
 
     Dialog(
@@ -230,6 +249,55 @@ internal fun MeditationPlayerDialog(
                     )
                 }
 
+                if (autoSleepAvailable) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.med_auto_sleep_toggle),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = RespiraColors.TertiaryText,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        GhostPill(
+                            text = if (autoSleepRemainingMs != null) {
+                                stringResource(
+                                    R.string.med_auto_sleep_end,
+                                    formatDuration(autoSleepRemainingMs),
+                                )
+                            } else {
+                                stringResource(R.string.med_auto_sleep_off)
+                            },
+                            onClick = {
+                                hub.setAutoSleepToEndOfTrack(autoSleepRemainingMs == null)
+                            },
+                            selected = autoSleepRemainingMs != null,
+                        )
+                    }
+                }
+
+                if (resumePosition != null) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            space = 8.dp,
+                            alignment = Alignment.CenterHorizontally,
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        GhostPill(
+                            text = stringResource(
+                                R.string.med_resume_position_at,
+                                formatDuration(resumePosition),
+                            ),
+                            onClick = { hub.seekTo(resumePosition) },
+                        )
+                    }
+                }
+
                 Spacer(Modifier.height(28.dp))
             }
         }
@@ -237,14 +305,16 @@ internal fun MeditationPlayerDialog(
 }
 
 @Composable
-private fun rememberNowMs(endMs: Long?): Long {
-    var now by remember(endMs) { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(endMs) {
-        if (endMs == null) return@LaunchedEffect
+private fun rememberNowMs(vararg endTimes: Long?): Long {
+    val keys = endTimes.toList()
+    var now by remember(keys) { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(keys) {
+        val deadlines = keys.filterNotNull()
+        if (deadlines.isEmpty()) return@LaunchedEffect
         while (true) {
             val current = System.currentTimeMillis()
             now = current
-            if (current >= endMs) break
+            if (deadlines.all { current >= it }) break
             delay(1_000L)
         }
     }

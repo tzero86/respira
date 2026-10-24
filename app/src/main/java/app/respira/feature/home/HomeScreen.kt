@@ -1,5 +1,6 @@
 package app.respira.feature.home
 
+import android.content.Context
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -57,11 +58,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.respira.BuildConfig
 import app.respira.R
 import app.respira.audio.Audio
+import app.respira.audio.PlaybackMemory
 import app.respira.feature.meditation.LibraryEvents
+import app.respira.feature.meditation.MeditationLibrary
 import app.respira.feature.meditation.Pick
 import app.respira.feature.meditation.TrackThumbnail
+import app.respira.feature.meditation.bundledMeditations
 import app.respira.feature.meditation.resolveFavorites
+import app.respira.feature.meditation.resolvePick
 import app.respira.feature.meditation.resolvePreferred
+import app.respira.feature.meditation.toMeditation
+import app.respira.feature.sleep.SleepRoutine
 import app.respira.feature.updates.CheckOutcome
 import app.respira.feature.updates.UpdateBanner
 import app.respira.feature.updates.UpdateCenter
@@ -72,6 +79,7 @@ import app.respira.ui.components.LanguageButton
 import app.respira.ui.components.PillButton
 import app.respira.ui.components.SectionLabel
 import app.respira.ui.components.SoftIconButton
+import app.respira.ui.components.formatDuration
 import app.respira.ui.theme.RespiraColors
 import app.respira.ui.theme.RespiraColors.Aqua
 import app.respira.ui.theme.RespiraColors.Mist
@@ -101,6 +109,22 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         UpdateCenter.check(context)
     }
+
+    val lastTrackId = remember(
+        libraryVersion,
+        audioState.track?.id,
+        audioState.trackPlaying,
+        audioState.positionMs / 5_000L,
+    ) {
+        PlaybackMemory.lastTrackId(context)
+    }
+    val resumePick = remember(libraryVersion, lastTrackId) {
+        resolveResumePick(context, lastTrackId)
+    }
+    val resumePosition = remember(lastTrackId, audioState.positionMs / 5_000L) {
+        PlaybackMemory.lastPosition(context)
+    }
+    val resume = resumePick?.let { ResumeTarget(pick = it, positionMs = resumePosition) }
 
     fun checkManually() {
         if (checking) return
@@ -168,6 +192,17 @@ fun HomeScreen(
 
         Spacer(Modifier.height(22.dp))
 
+        resume?.let { target ->
+            ResumeCard(
+                pick = target.pick,
+                positionMs = target.positionMs,
+                onPlay = {
+                    Audio.hub.playTrackFrom(target.pick.meditation.track, target.positionMs)
+                },
+            )
+            Spacer(Modifier.height(22.dp))
+        }
+
         tonight?.let { pick ->
             SectionLabel(stringResource(R.string.home_tonight_label))
             Spacer(Modifier.height(12.dp))
@@ -215,6 +250,15 @@ fun HomeScreen(
         }
 
         Spacer(Modifier.height(12.dp))
+
+        SleepRoutineEntry(
+            onClick = {
+                SleepRoutine.request()
+                onBreathe()
+            },
+        )
+
+        Spacer(Modifier.height(22.dp))
 
         SectionLabel(stringResource(R.string.home_explore_label))
         Spacer(Modifier.height(12.dp))
@@ -328,6 +372,118 @@ private fun TonightCard(
                 onClick = onPlay,
                 size = 46.dp,
                 tint = meditation.accent,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResumeCard(
+    pick: Pick,
+    positionMs: Long,
+    onPlay: () -> Unit,
+) {
+    val meditation = pick.meditation
+    val resuming = positionMs > RESUME_THRESHOLD_MS
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        borderColor = Aqua.copy(alpha = 0.30f),
+        topTint = Aqua,
+        onClick = onPlay,
+        contentPadding = PaddingValues(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Aqua.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                TrackThumbnail(meditation = meditation, size = 58.dp)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(
+                        if (resuming) {
+                            R.string.home_resume_sleeping_title
+                        } else {
+                            R.string.home_resume_listen_title
+                        },
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Aqua,
+                )
+                Text(
+                    text = meditation.track.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Mist,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (positionMs > 0L) {
+                    Text(
+                        text = stringResource(
+                            R.string.home_resume_from,
+                            formatDuration(positionMs),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecondaryText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            SoftIconButton(
+                icon = R.drawable.ic_play,
+                contentDescription = stringResource(
+                    R.string.home_resume_play,
+                    meditation.track.title,
+                ),
+                onClick = onPlay,
+                size = 46.dp,
+                tint = Aqua,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SleepRoutineEntry(onClick: () -> Unit) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        borderColor = RespiraColors.Violet.copy(alpha = 0.28f),
+        topTint = RespiraColors.Violet,
+        onClick = onClick,
+        contentPadding = PaddingValues(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(
+                icon = R.drawable.ic_moon_star,
+                tint = RespiraColors.Violet,
+                size = 42.dp,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.home_sleep_routine),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Mist,
+                )
+                Text(
+                    text = stringResource(R.string.home_sleep_routine_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SecondaryText,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = TertiaryText,
             )
         }
     }
@@ -565,4 +721,25 @@ private fun ExploreCard(
             )
         }
     }
+}
+
+private const val RESUME_THRESHOLD_MS = 30_000L
+
+private data class ResumeTarget(
+    val pick: Pick,
+    val positionMs: Long,
+)
+
+/**
+ * The track that was playing last, or null when nothing was played yet or the
+ * track is gone from the library.
+ */
+private fun resolveResumePick(context: Context, id: String?): Pick? {
+    if (id == null) return null
+    return resolvePick(
+        context = context,
+        id = id,
+        bundled = bundledMeditations.map { it.toMeditation(context) },
+        library = MeditationLibrary.load(context),
+    )
 }

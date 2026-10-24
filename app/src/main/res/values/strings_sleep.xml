@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sleep_routine_action">Rutina para dormir</string>
+    <string name="sleep_routine_hint">3 minutos de 4-7-8 y luego tu pista</string>
+    <string name="sleep_routine_track_starting">Tu pista está empezando</string>
+    <string name="sleep_routine_no_track">Terminaste. Disfruta de la calma.</string>
+</resources>

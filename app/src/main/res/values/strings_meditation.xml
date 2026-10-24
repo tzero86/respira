@@ -37,6 +37,11 @@
     <string name="med_sleep_timer_remaining">Temporizador de sueño · %1$s</string>
     <string name="med_unknown_duration">—</string>
 
+    <string name="med_auto_sleep_end">Fin de la pista · %1$s</string>
+    <string name="med_auto_sleep_off">Sin fundido</string>
+    <string name="med_auto_sleep_toggle">Fundido al terminar de la pista</string>
+    <string name="med_resume_position_at">Continuar · %1$s</string>
+
     <string name="med_track_still_water">Agua quieta</string>
     <string name="med_track_still_water_subtitle">Texturas cálidas y campanas lentas</string>
     <string name="med_track_night_sky">Cielo nocturno</string>

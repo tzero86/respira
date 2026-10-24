@@ -38,12 +38,16 @@ data class AudioState(
     val masterVolume: Float = 1f,
     /** Wall-clock instant when the sleep timer fires, or null when inactive. */
     val sleepTimerEndMs: Long? = null,
+    /** Wall-clock instant when the automatic end-of-track fade finishes, null when off. */
+    val autoSleepEndMs: Long? = null,
 )
 
 interface AudioHub {
     val state: StateFlow<AudioState>
 
     fun playTrack(track: AudioTrack)
+    /** Starts [track] at [positionMs] instead of from the beginning. */
+    fun playTrackFrom(track: AudioTrack, positionMs: Long)
     fun toggleTrack()
     fun pauseTrack()
     fun resumeTrack()
@@ -59,6 +63,8 @@ interface AudioHub {
     fun setMasterVolume(volume: Float)
 
     fun setSleepTimer(minutes: Int?)
+    /** Arms or cancels the automatic fade-out that lets the track end softly. */
+    fun setAutoSleepToEndOfTrack(enabled: Boolean)
     fun stopAll()
 }
 
@@ -94,6 +100,15 @@ internal open class SilentAudioHub : AudioHub {
         )
     }
 
+    override fun playTrackFrom(track: AudioTrack, positionMs: Long) = _state.update {
+        it.copy(
+            track = track,
+            trackPlaying = true,
+            positionMs = positionMs.coerceAtLeast(0L),
+            durationMs = if (track.durationMs > 0) track.durationMs else 0L,
+        )
+    }
+
     override fun toggleTrack() = _state.update {
         if (it.track == null) it else it.copy(trackPlaying = !it.trackPlaying)
     }
@@ -109,7 +124,13 @@ internal open class SilentAudioHub : AudioHub {
     }
 
     override fun stopTrack() = _state.update {
-        it.copy(track = null, trackPlaying = false, positionMs = 0L, durationMs = 0L)
+        it.copy(
+            track = null,
+            trackPlaying = false,
+            positionMs = 0L,
+            durationMs = 0L,
+            autoSleepEndMs = null,
+        )
     }
 
     override fun setLayerVolume(layerId: String, volume: Float) = _state.update {
@@ -150,6 +171,23 @@ internal open class SilentAudioHub : AudioHub {
                 System.currentTimeMillis() + m.coerceAtLeast(1) * 60_000L
             },
         )
+    }
+
+    override fun setAutoSleepToEndOfTrack(enabled: Boolean) {
+        _state.update { current ->
+            if (!enabled) {
+                current.copy(autoSleepEndMs = null)
+            } else {
+                val remaining = current.durationMs - current.positionMs
+                current.copy(
+                    autoSleepEndMs = if (remaining > 0L) {
+                        System.currentTimeMillis() + remaining
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
     }
 
     override fun stopAll() = _state.update {

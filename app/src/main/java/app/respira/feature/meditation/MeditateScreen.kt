@@ -1,5 +1,7 @@
 package app.respira.feature.meditation
 
+import android.text.format.Formatter
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -66,6 +68,7 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
     val libraryVersion by LibraryEvents.version.collectAsStateWithLifecycle()
     var favorites by remember { mutableStateOf(MeditationLibrary.favorites(context)) }
     var pinnedId by remember { mutableStateOf(MeditationLibrary.preferred(context)) }
+    var storage by remember { mutableStateOf(LibraryStorage.usage(context)) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
@@ -118,6 +121,7 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
         library = MeditationLibrary.load(context)
         favorites = MeditationLibrary.favorites(context)
         pinnedId = MeditationLibrary.preferred(context)
+        storage = LibraryStorage.usage(context)
     }
 
     val preferred = remember(pinnedId, library, bundled) {
@@ -133,6 +137,20 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
     fun favorite(id: String) {
         favorites = MeditationLibrary.toggleFavorite(context, id)
         LibraryEvents.bump()
+    }
+
+    fun sweepStorage() {
+        val freed = LibraryStorage.sweep(context)
+        storage = LibraryStorage.usage(context)
+        val message = if (freed > 0L) {
+            context.getString(
+                R.string.storage_cleaned,
+                Formatter.formatShortFileSize(context, freed),
+            )
+        } else {
+            context.getString(R.string.storage_nothing_to_clean)
+        }
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
     LazyColumn(
         modifier = modifier
@@ -268,6 +286,13 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        item {
+            StorageRow(
+                usage = storage,
+                onClean = { sweepStorage() },
+            )
+        }
     }
 
     if (showPlayer) {
@@ -289,6 +314,56 @@ fun MeditateScreen(modifier: Modifier = Modifier) {
                 LibraryEvents.bump()
             },
         )
+    }
+}
+
+@Composable
+private fun StorageRow(
+    usage: StorageUsage,
+    onClean: () -> Unit,
+) {
+    val context = LocalContext.current
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        topTint = RespiraColors.Indigo,
+        contentPadding = PaddingValues(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(icon = R.drawable.ic_folder_open, tint = RespiraColors.Indigo, size = 44.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(
+                        R.string.storage_usage,
+                        Formatter.formatShortFileSize(context, usage.totalBytes),
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = RespiraColors.Mist,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.storage_usage_tracks,
+                        usage.trackCount,
+                        Formatter.formatShortFileSize(context, usage.libraryBytes),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = RespiraColors.SecondaryText,
+                )
+                if (usage.partBytes > 0L) {
+                    Text(
+                        text = stringResource(
+                            R.string.storage_leftover,
+                            Formatter.formatShortFileSize(context, usage.partBytes),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RespiraColors.Amber,
+                    )
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            GhostPill(text = stringResource(R.string.storage_clean), onClick = onClean)
+        }
     }
 }
 

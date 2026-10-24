@@ -24,6 +24,15 @@
     <string name="home_favorites_empty_body">Heart the tracks you like and they will show up here.</string>
     <string name="home_tonight_label">For tonight</string>
     <string name="home_tonight_action">Set</string>
+
+    <string name="home_resume_sleeping_title">Keep sleeping</string>
+    <string name="home_resume_listen_title">Listen again</string>
+    <string name="home_resume_from">from %1$s</string>
+    <string name="home_resume_play">Continue %1$s</string>
+
+    <string name="home_sleep_routine">Sleep routine</string>
+    <string name="home_sleep_routine_hint">3 min of breathing, then your track</string>
+
     <string name="home_favorite_open">Open %1$s</string>
     <string name="home_favorite_play">Play %1$s</string>
     <string name="home_favorite_pause">Pause %1$s</string>
