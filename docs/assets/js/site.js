@@ -83,7 +83,7 @@
     s_fire: "Fireplace",
     s_listen: "Listen to the mix",
     s_stop: "Mute",
-    s_note: "Synthesised in your browser for this demo.",
+    s_note: "Built in your browser, layer by layer. The app uses field recordings.",
 
     g_eyebrow: "03 — Screens",
     g_title: "This is how it feels.",
@@ -180,6 +180,7 @@
     b_start: "Comenzar",
     s_listen: "Escuchar la mezcla",
     s_stop: "Silenciar",
+    s_note: "Creado en tu navegador, capa por capa. La app usa grabaciones reales.",
     phase_inhale: "Inhala",
     phase_holdIn: "Sostén",
     phase_exhale: "Exhala",
@@ -576,13 +577,26 @@
     deep: { rain: 35, thunder: 0, wind: 0, stream: 0, ocean: 0, fire: 0 }
   };
 
+  /**
+   * The demo's layers are built from the mechanism that makes each sound,
+   * the same way the app's own generator works.  A band-passed noise bed
+   * sounds like static no matter how it is filtered, so each layer here
+   * has a body, and its events are irregular and varied.
+   *
+   * rain   - Poisson droplet impacts over a low-mid sheet
+   * thunder- a rumble bed with a few widely spaced rolls
+   * wind   - a wandering band under a slow gust
+   * stream - bubble resonance: short chirps whose pitch rises
+   * ocean  - a slow swell with foam on the wave peaks
+   * fire   - crackle trains over a continuous roar and sizzle
+   */
   const SOUNDS = {
-    rain: { buffer: "white", type: "bandpass", freq: 2600, q: 0.3, level: 0.55 },
-    thunder: { buffer: "brown", type: "lowpass", freq: 150, q: 0.7, level: 1.1, lfo: { rate: 0.09, depth: 0.45, target: "gain" } },
-    wind: { buffer: "white", type: "bandpass", freq: 480, q: 0.7, level: 0.7, lfo: { rate: 0.06, depth: 260, target: "filter" } },
-    stream: { buffer: "white", type: "bandpass", freq: 1900, q: 0.9, level: 0.65, lfo: { rate: 0.23, depth: 0.1, target: "gain" } },
-    ocean: { buffer: "white", type: "lowpass", freq: 620, q: 0.4, level: 1.0, lfo: { rate: 0.08, depth: 0.5, target: "gain" } },
-    fire: { buffer: "white", type: "bandpass", freq: 1100, q: 0.6, level: 0.8, lfo: { rate: 0.55, depth: 0.28, target: "gain" } }
+    rain: { build: "rain", level: 0.62 },
+    thunder: { build: "thunder", level: 1.05 },
+    wind: { build: "wind", level: 0.72 },
+    stream: { build: "stream", level: 0.66 },
+    ocean: { build: "ocean", level: 0.95 },
+    fire: { build: "fire", level: 0.78 }
   };
 
   const sliders = {};
@@ -645,25 +659,244 @@
       if (!node) return;
       const sound = SOUNDS[id];
       const amount = Math.pow(valueOf(id) / 100, 1.6) * sound.level * 0.5;
-      const base = sound.lfo && sound.lfo.target === "gain" ? amount * 0.65 : amount;
       node.gain.gain.cancelScheduledValues(now);
-      node.gain.gain.setTargetAtTime(base, now, 0.2);
+      node.gain.gain.setTargetAtTime(amount, now, 0.2);
     });
   }
 
-  function makeNoise(ctx, kind) {
-    const length = Math.floor(ctx.sampleRate * 4);
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  /**
+   * Build a layer from the mechanism that makes the sound.
+   *
+   * Everything is generated into a four second buffer and looped.  The
+   * buffer is long enough that the loop point is not obvious, and each
+   * layer is built so that its events are irregular: a Poisson arrival
+   * process, not a metronome.
+   */
+  function buildLayer(ctx, kind) {
+    const sr = ctx.sampleRate;
+    const length = Math.floor(sr * 4);
+    const buffer = ctx.createBuffer(1, length, sr);
     const data = buffer.getChannelData(0);
-    let last = 0;
-    for (let i = 0; i < length; i += 1) {
-      const white = Math.random() * 2 - 1;
-      if (kind === "brown") {
-        last = (last + 0.02 * white) / 1.02;
-        data[i] = last * 3.2;
-      } else {
-        data[i] = white;
+
+    // a small seeded generator so the demo is reproducible
+    let seed = 20261024;
+    const random = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    const noise = () => random() * 2 - 1;
+
+    /** One-pole low-pass, used to shape the noise beds. */
+    const lowpass = (cutoff) => {
+      const a = 1 - Math.exp((-2 * Math.PI * cutoff) / sr);
+      let last = 0;
+      return (x) => {
+        last += a * (x - last);
+        return last;
+      };
+    };
+
+    /**
+     * Run a filter over the whole buffer and throw away the start-up
+     * transient.
+     *
+     * A one-pole filter starts with its state at zero, so its first samples
+     * are wrong.  On a looping buffer that puts a step at the loop point,
+     * which is audible as a tick every few seconds, and it also raises the
+     * peak of the layer so the normalisation pulls everything else down.
+     */
+    const filtered = (cutoff, mix) => {
+      const tone = lowpass(cutoff);
+      const warm = Math.floor(sr * 0.25);
+      let last = 0;
+      for (let i = 0; i < warm; i += 1) last = tone(noise());
+      for (let i = 0; i < length; i += 1) {
+        last = tone(noise());
+        data[i] += last * mix;
       }
+    };
+
+    /**
+     * Warm a set of filters up together, so none of them carries a
+     * start-up transient into the loop.
+     */
+    const warmUp = (tones) => {
+      for (let i = 0; i < Math.floor(sr * 0.25); i += 1) {
+        tones.forEach((tone) => tone(noise()));
+      }
+    };
+
+    /** Add a short burst at `at`, shaped by an envelope. */
+    const addBurst = (at, lengthSamples, cutoff, decay, amp) => {
+      const start = Math.floor(at * sr);
+      const tone = lowpass(cutoff);
+      // a burst that starts at the loop point would carry the filter's
+      // start-up transient with it
+      for (let i = 0; i < 64; i += 1) tone(noise());
+      for (let i = 0; i < lengthSamples; i += 1) {
+        const t = i / sr;
+        const env = Math.exp(-t / decay);
+        const index = (start + i) % length;
+        data[index] += tone(noise()) * env * amp;
+      }
+    };
+
+    if (kind === "rain") {
+      // a low-mid sheet so the rain has a body, not just a hiss
+      filtered(900, 0.30);
+      // droplet impacts, arriving at random.  Each drop is darker than the
+      // sheet, and they are loud enough to stand above it, but they must
+      // not be so bright that the layer turns into a hiss.
+      const bright = lowpass(2600);
+      let t = 0;
+      while (t < 4) {
+        t += -Math.log(1 - random()) / 42;
+        const amp = 0.30 + random() * 0.75;
+        const decay = 0.004 + random() * 0.012;
+        const start = Math.floor(t * sr);
+        const n = Math.floor(decay * 4 * sr);
+        for (let i = 0; i < n; i += 1) {
+          const env = Math.exp(-(i / sr) / decay);
+          data[(start + i) % length] += bright(noise()) * env * amp;
+        }
+      }
+    } else if (kind === "fire") {
+      // the roar of the gas and the hiss of the flame: the bed that the
+      // crackles ride on, which is what stops it sounding like a click train.
+      // The roar carries most of the energy, so the layer sits low, the way
+      // a fire does.
+      const roar = lowpass(320);
+      const hiss = lowpass(2600);
+      // warm the filters up first, so their start-up transient does not
+      // land on the loop point
+      warmUp([roar, hiss]);
+      for (let i = 0; i < length; i += 1) {
+        const seconds = i / sr;
+        const swell = 0.72 + 0.28 * Math.sin(seconds * 2 * Math.PI * 0.23);
+        data[i] += roar(noise()) * 1.15 * swell;
+        data[i] += hiss(noise()) * 0.10 * (0.8 + 0.2 * Math.sin(seconds * 2 * Math.PI * 0.41));
+      }
+      // crackles in short irregular bursts, each with its own decay
+      let cursor = 0;
+      while (cursor < 4) {
+        const burst = 0.06 + random() * 0.3;
+        const rate = 1.5 + random() * 4;
+        const count = Math.max(1, Math.round(burst * rate));
+        for (let i = 0; i < count; i += 1) {
+          const at = cursor + random() * burst;
+          // the crackle has to stand clearly above the roar, or the layer is
+          // just a rumble with something buried in it
+          const amp = 0.9 + random() * 1.6 * random();
+          // each crackle has its own brightness, which is what stops the
+          // layer sounding like one click repeated
+          const cutoff = 1800 + random() * 3600;
+          addBurst(at, Math.floor(0.03 * sr), cutoff, 0.004 + random() * 0.012, amp);
+        }
+        cursor += burst + 0.2 + random() * 1.4;
+      }
+    } else if (kind === "stream") {
+      // bubbles: a short chirp whose pitch rises, over a body of water.
+      // The body is kept low and smooth, so the bubbles stand above it
+      // rather than competing with the bed's own random peaks.
+      const body = lowpass(900);
+      warmUp([body]);
+      let smooth = 0;
+      for (let i = 0; i < length; i += 1) {
+        smooth = smooth * 0.995 + body(noise()) * 0.005;
+        data[i] += smooth * 4.0;
+      }
+      let t = 0;
+      while (t < 4) {
+        t += -Math.log(1 - random()) / 26;
+        const f0 = 500 + random() * 900;
+        const f1 = f0 * (1.2 + random() * 0.9);
+        const dur = 0.03 + random() * 0.05;
+        const start = Math.floor(t * sr);
+        const n = Math.floor(dur * sr);
+        let phase = 0;
+        const amp = 0.7 + random() * 0.5;
+        for (let i = 0; i < n; i += 1) {
+          const f = f0 + (f1 - f0) * (i / n);
+          phase += (2 * Math.PI * f) / sr;
+          const env = Math.sin((Math.PI * i) / n);
+          data[(start + i) % length] += Math.sin(phase) * env * amp;
+        }
+      }
+    } else if (kind === "ocean") {
+      // the swell, and foam on the peaks of it
+      const body = lowpass(420);
+      const foam = lowpass(2600);
+      warmUp([body, foam]);
+      const period = 4 / 1.6;
+      for (let i = 0; i < length; i += 1) {
+        const seconds = i / sr;
+        const swell = 0.5 + 0.5 * Math.sin((2 * Math.PI * seconds) / period);
+        const shaped = swell * swell;
+        data[i] += body(noise()) * (0.3 + 0.7 * shaped) * 1.05;
+        data[i] += foam(noise()) * (0.05 + 0.22 * shaped);
+      }
+      // the break of each wave: a burst of foam on the way up
+      const breaks = 1.6;
+      for (let k = 0; k < breaks; k += 1) {
+        const at = (k / breaks) * 4 + period * 0.25;
+        addBurst(at, Math.floor(0.12 * sr), 3200, 0.035, 0.9 + random() * 0.5);
+      }
+    } else if (kind === "thunder") {
+      // a rumble bed with a few widely spaced rolls
+      const bed = lowpass(110);
+      warmUp([bed]);
+      for (let i = 0; i < length; i += 1) {
+        const seconds = i / sr;
+        data[i] += bed(noise()) * (0.4 + 0.3 * Math.sin(seconds * 2 * Math.PI * 0.035));
+      }
+      let t = 0.4;
+      while (t < 3.6) {
+        const dur = 0.8 + random() * 1.4;
+        const start = Math.floor(t * sr);
+        const n = Math.floor(dur * sr);
+        // the roll is a low rumble, not a hiss: it is filtered down before
+        // it is added, otherwise it is broadband and the whole layer sounds
+        // like static
+        const roll = lowpass(400);
+        for (let i = 0; i < n; i += 1) {
+          const seconds = i / sr;
+          const env = (1 - Math.exp(-seconds / 0.12)) * Math.exp(-seconds / 0.5);
+          data[(start + i) % length] += roll(noise()) * env * (0.5 + random() * 0.5);
+        }
+        t += 1.1 + random() * 1.8;
+      }
+    } else {
+      // wind: a wandering band under a slow gust, with the gusts arriving
+      // as distinct swells rather than an even wash
+      const band = lowpass(700);
+      warmUp([band]);
+      for (let i = 0; i < length; i += 1) {
+        const seconds = i / sr;
+        const gust = 0.55 + 0.45 * Math.sin(seconds * 2 * Math.PI * 0.06);
+        data[i] += band(noise()) * gust * 0.55;
+      }
+      // a few stronger gusts, so the layer has events above its bed
+      let t = 0.3;
+      while (t < 3.7) {
+        const dur = 0.4 + random() * 0.7;
+        const start = Math.floor(t * sr);
+        const n = Math.floor(dur * sr);
+        const gust = lowpass(1100);
+        for (let i = 0; i < n; i += 1) {
+          const seconds = i / sr;
+          const env = Math.sin((Math.PI * i) / n);
+          data[(start + i) % length] += gust(noise()) * env * (0.7 + random() * 0.7);
+        }
+        t += 0.5 + random() * 0.9;
+      }
+    }
+
+    // normalise so every layer starts at the same level
+    let peak = 0;
+    for (let i = 0; i < length; i += 1) peak = Math.max(peak, Math.abs(data[i]));
+    if (peak > 0) {
+      const gain = 0.5 / peak;
+      for (let i = 0; i < length; i += 1) data[i] *= gain;
     }
     return buffer;
   }
@@ -673,7 +906,7 @@
     if (!AudioCtx) return false;
     const ctx = new AudioCtx();
     mixer.ctx = ctx;
-    mixer.buffers = { white: makeNoise(ctx, "white"), brown: makeNoise(ctx, "brown") };
+    mixer.buffers = {};
 
     const master = ctx.createGain();
     master.gain.value = 0;
@@ -686,38 +919,32 @@
 
     Object.keys(SOUNDS).forEach((id) => {
       const sound = SOUNDS[id];
+      const buffer = buildLayer(ctx, sound.build);
+      mixer.buffers[id] = buffer;
+
       const source = ctx.createBufferSource();
-      source.buffer = mixer.buffers[sound.buffer];
+      source.buffer = buffer;
       source.loop = true;
 
-      const filter = ctx.createBiquadFilter();
-      filter.type = sound.type;
-      filter.frequency.value = sound.freq;
-      filter.Q.value = sound.q;
+      // each layer sits on its own place in the stereo field, the same way
+      // the app places them on a stage
+      const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      const panValue = { rain: -0.35, thunder: 0, wind: -0.2, stream: -0.5, ocean: 0.4, fire: 0.55 }[id] || 0;
+      if (pan) pan.pan.value = panValue;
 
       const gain = ctx.createGain();
       const amount = Math.pow(valueOf(id) / 100, 1.6) * sound.level * 0.5;
-      gain.gain.value = sound.lfo && sound.lfo.target === "gain" ? amount * 0.65 : amount;
+      gain.gain.value = amount;
 
-      source.connect(filter).connect(gain).connect(master);
-      source.start(0, Math.random() * 3);
-      source.loopStart = 0;
-
-      if (sound.lfo) {
-        const lfo = ctx.createOscillator();
-        lfo.type = "sine";
-        lfo.frequency.value = sound.lfo.rate;
-        const depth = ctx.createGain();
-        depth.gain.value = sound.lfo.target === "gain"
-          ? amount * sound.lfo.depth
-          : sound.lfo.depth;
-        lfo.connect(depth);
-        if (sound.lfo.target === "gain") depth.connect(gain.gain);
-        else depth.connect(filter.frequency);
-        lfo.start();
+      if (pan) {
+        source.connect(gain).connect(pan).connect(master);
+      } else {
+        source.connect(gain).connect(master);
       }
+      // start at a random point so the layers are not all in step
+      source.start(0, Math.random() * 3);
 
-      mixer.nodes[id] = { source, filter, gain };
+      mixer.nodes[id] = { source, pan, gain };
     });
 
     await ctx.resume();
