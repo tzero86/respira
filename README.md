@@ -120,6 +120,13 @@ python -m http.server 8123 --directory docs
 
 ## Status
 
+`0.1.0-alpha15` — the app now survives the night. The audio service is sticky,
+so when Android or an OEM battery manager stops the process mid-session the mix
+is rebuilt from disk and playback resumes by itself; a mix that was paused
+stays paused instead of starting on its own. The mixer also asks once, and only
+while a timer of an hour or more is running, for the battery exemption that
+stops those managers from killing playback in the first place.
+
 `0.1.0-alpha14` — nine of the ten soundscapes are now real public-domain field
 recordings instead of synthesis; only the low hum is generated. The fire was the
 reason: its crackle band was 94 % silence and every crackle had the same

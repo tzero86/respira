@@ -35,4 +35,8 @@
         <item quantity="one">%d layer</item>
         <item quantity="other">%d layers</item>
     </plurals>
+    <string name="mixer_battery_title">Keep the night from cutting out</string>
+    <string name="mixer_battery_body">To keep the mix playing until the timer ends, let Respira run without battery restrictions.</string>
+    <string name="mixer_battery_action">Allow</string>
+    <string name="mixer_battery_later">Not now</string>
 </resources>

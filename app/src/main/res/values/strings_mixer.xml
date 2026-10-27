@@ -35,4 +35,8 @@
         <item quantity="one">%d capa</item>
         <item quantity="other">%d capas</item>
     </plurals>
+    <string name="mixer_battery_title">Que la noche no se corte</string>
+    <string name="mixer_battery_body">Para que la mezcla siga sonando hasta que termine el temporizador, deja que Respira funcione sin restricciones de batería.</string>
+    <string name="mixer_battery_action">Permitir</string>
+    <string name="mixer_battery_later">Ahora no</string>
 </resources>

@@ -29,6 +29,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlin.math.ceil
 
 /**
  * Foreground service that keeps playback alive while the screen is off and
@@ -100,6 +101,10 @@ class AudioService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A null intent means the system restarted us after stopping the process,
+        // which is exactly the case a night of ambience has to survive.
+        if (intent == null) restoreMixAfterKill()
+
         when (intent?.action) {
             ACTION_TOGGLE -> togglePlayback()
             ACTION_STOP -> Audio.hub.stopAll()
@@ -121,7 +126,29 @@ class AudioService : Service() {
                 }
             }
         }
-        return START_NOT_STICKY
+        return START_STICKY
+    }
+
+    /**
+     * Puts the overnight mix back after the system stopped the process. Only a
+     * mix that was actually playing resumes: a paused one keeps its levels on
+     * screen and stays silent.
+     */
+    private fun restoreMixAfterKill() {
+        val hub = Audio.hub
+        if (hub.state.value.isAudioActive()) return
+
+        val saved = MixerState.read(this)
+        if (saved.layers.isEmpty() || !saved.playing) return
+
+        hub.setLayers(saved.layers)
+        hub.setMasterVolume(saved.masterVolume)
+        hub.setLayersPlaying(true)
+
+        val remaining = saved.timerEndMs - System.currentTimeMillis()
+        if (remaining > 0L) {
+            hub.setSleepTimer(ceil(remaining / 60_000.0).toInt().coerceAtLeast(1))
+        }
     }
 
     private fun startForegroundNow() {

@@ -29,6 +29,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.cos
@@ -47,6 +50,20 @@ internal class DefaultAudioHub(private val context: Context) : AudioHub {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    init {
+        // Keep the play intent on disk. After the system stops us overnight the
+        // service may only put the mix back when it was actually running, so the
+        // very first emission is dropped: the hub starts silent, and reading that
+        // as "the user paused" would erase the intent before the service sees it.
+        scope.launch {
+            _state
+                .map { it.layersPlaying }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { playing -> MixerState.setPlaying(context, playing) }
+        }
+    }
 
     private var trackPlayer: ExoPlayer? = null
     private val voices = LinkedHashMap<String, LayerVoice>()

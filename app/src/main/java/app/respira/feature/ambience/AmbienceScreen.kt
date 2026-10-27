@@ -1,7 +1,6 @@
 package app.respira.feature.ambience
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -64,6 +63,7 @@ import app.respira.R
 import app.respira.audio.AmbienceCatalog
 import app.respira.audio.Audio
 import app.respira.audio.AudioState
+import app.respira.audio.MixerState
 import app.respira.ui.components.GhostPill
 import app.respira.ui.components.GlassCard
 import app.respira.ui.components.PillButton
@@ -75,10 +75,6 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-private const val MixerPrefsName = "respira_mixer"
-private const val KeyLayers = "layers"
-private const val KeyMaster = "master"
-private const val KeyTimerEnd = "sleep_timer_end_ms"
 private const val DefaultLayerVolume = 0.6f
 
 private val SleepTimerOptions = listOf<Int?>(null, 15, 30, 45, 60, 90, 120, 240, 480)
@@ -91,9 +87,6 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
     val hub = Audio.hub
     val state by hub.state.collectAsStateWithLifecycle()
 
-    val prefs = remember(context) {
-        context.getSharedPreferences(MixerPrefsName, Context.MODE_PRIVATE)
-    }
     val lastVolumes = rememberLastLayerVolumes()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var restored by remember { mutableStateOf(false) }
@@ -103,31 +96,27 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(hub) {
         val snapshot = hub.state.value
-        val freshMix = snapshot.layers.isEmpty()
 
-        if (freshMix) {
-            val savedLayers = readSavedLayers(prefs)
-            if (savedLayers.isNotEmpty()) {
+        if (snapshot.layers.isEmpty()) {
+            val saved = MixerState.read(context)
+            if (saved.layers.isNotEmpty()) {
                 // The saved mix is restored with its levels but stays silent:
                 // a sound that begins by itself when the screen opens is not
-                // what the user asked for.
-                hub.setLayers(savedLayers)
+                // what the user asked for. Only the service resumes a mix, and
+                // only after the system stopped it mid-night.
+                hub.setLayers(saved.layers)
                 hub.setLayersPlaying(false)
             }
-        }
 
-        if (freshMix && abs(snapshot.masterVolume - 1f) < 0.001f) {
-            val savedMaster = prefs.getFloat(KeyMaster, 1f).coerceIn(0f, 1f)
-            if (abs(savedMaster - snapshot.masterVolume) > 0.001f) {
-                hub.setMasterVolume(savedMaster)
+            if (abs(snapshot.masterVolume - saved.masterVolume) > 0.001f) {
+                hub.setMasterVolume(saved.masterVolume)
             }
-        }
 
-        if (snapshot.sleepTimerEndMs == null) {
-            val timerEnd = prefs.getLong(KeyTimerEnd, 0L)
-            val remaining = timerEnd - System.currentTimeMillis()
-            if (remaining > 0L) {
-                hub.setSleepTimer(ceil(remaining / 60_000.0).toInt().coerceAtLeast(1))
+            if (snapshot.sleepTimerEndMs == null) {
+                val remaining = saved.timerEndMs - System.currentTimeMillis()
+                if (remaining > 0L) {
+                    hub.setSleepTimer(ceil(remaining / 60_000.0).toInt().coerceAtLeast(1))
+                }
             }
         }
 
@@ -136,17 +125,7 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(restored, state.layers, state.masterVolume, state.sleepTimerEndMs) {
         if (!restored) return@LaunchedEffect
-        prefs.edit()
-            .putStringSet(
-                KeyLayers,
-                state.layers
-                    .filterValues { it > 0.001f }
-                    .map { (id, volume) -> "$id:$volume" }
-                    .toMutableSet(),
-            )
-            .putFloat(KeyMaster, state.masterVolume)
-            .putLong(KeyTimerEnd, state.sleepTimerEndMs ?: 0L)
-            .apply()
+        MixerState.write(context, state.layers, state.masterVolume, state.sleepTimerEndMs)
     }
 
     val selectedPresetId = remember(state.layers) {
@@ -176,6 +155,11 @@ fun AmbienceScreen(modifier: Modifier = Modifier) {
             subtitle = stringResource(R.string.mixer_subtitle),
         )
         Spacer(Modifier.height(14.dp))
+
+        BatteryCard(
+            timerEndMs = state.sleepTimerEndMs,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
 
         SavedMixesRow(
             mixes = savedMixes,
@@ -725,18 +709,6 @@ private fun rememberSleepRemaining(endMs: Long?): Long? {
 
     return endMs?.let { (it - now).coerceAtLeast(0L) }
 }
-
-private fun readSavedLayers(prefs: SharedPreferences): Map<String, Float> =
-    (prefs.getStringSet(KeyLayers, mutableSetOf()) ?: emptySet())
-        .mapNotNull { entry ->
-            val separator = entry.lastIndexOf(':')
-            if (separator <= 0) return@mapNotNull null
-            val id = entry.substring(0, separator)
-            val volume = entry.substring(separator + 1).toFloatOrNull() ?: return@mapNotNull null
-            if (AmbienceCatalog.layer(id) == null) null else id to volume.coerceIn(0f, 1f)
-        }
-        .filter { (_, volume) -> volume > 0.001f }
-        .toMap()
 
 private fun levelsMatch(layers: Map<String, Float>, expected: Map<String, Float>): Boolean {
     val active = layers.filterValues { it > 0.001f }
