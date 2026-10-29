@@ -58,8 +58,11 @@ Meditate accepts audio four ways:
 
 YouTube extraction is done on-device against the player API with the Android client,
 so no third-party service is involved: the title, duration and best audio track are
-resolved from the video, and only that audio is downloaded. Videos that need sign-in
-or are region-locked say so; playlist links ask you to open a single video.
+resolved from the video, and only that audio is downloaded. When a video publishes
+several audio tracks (YouTube auto-dubbing), Respira imports the original track by
+default, and the link dialog offers a track selector to take a dub instead. Videos
+that need sign-in or are region-locked say so; playlist links ask you to open a
+single video.
 
 ## Build
 
@@ -119,6 +122,15 @@ python -m http.server 8123 --directory docs
 ```
 
 ## Status
+
+`0.1.0-alpha16` — YouTube videos that publish several audio tracks (its automatic
+dubbing) no longer import the wrong language. The player API now lists one audio
+stream per track — English and Portuguese dubs first, the original Spanish track
+last — and the import used to take the first stream matching the wanted bitrate,
+which was the dub. Respira now always prefers the original track, and the link
+dialog shows a **Pista de audio** selector when a video has more than one, so a dub
+can still be chosen deliberately. Both the inspected size and the download use the
+picked track.
 
 `0.1.0-alpha15` — the app now survives the night. The audio service is sticky,
 so when Android or an OEM battery manager stops the process mid-session the mix

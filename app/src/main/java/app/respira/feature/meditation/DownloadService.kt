@@ -72,7 +72,9 @@ internal class DownloadService : Service() {
     }
 
     private fun sourceOf(intent: Intent): AudioSource? {
-        intent.getStringExtra(EXTRA_VIDEO_ID)?.let { return AudioSource.YouTube(it) }
+        intent.getStringExtra(EXTRA_VIDEO_ID)?.let {
+            return AudioSource.YouTube(it, intent.getStringExtra(EXTRA_TRACK))
+        }
         intent.getStringExtra(EXTRA_URL)?.let { return AudioSource.Direct(it) }
         return null
     }
@@ -229,6 +231,7 @@ internal class DownloadService : Service() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_URL = "url"
         const val EXTRA_VIDEO_ID = "videoId"
+        const val EXTRA_TRACK = "audioTrack"
 
         private const val CHANNEL_ID = "respira_downloads"
         private const val NOTIFICATION_ID = 43

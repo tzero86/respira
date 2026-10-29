@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -70,6 +71,7 @@ internal fun LinkImportDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var url by rememberSaveable { mutableStateOf("") }
+    var trackId by rememberSaveable { mutableStateOf<String?>(null) }
     var state by remember { mutableStateOf<LinkState>(LinkState.Idle) }
     var previous by remember { mutableStateOf<LinkState?>(null) }
     var quality by remember { mutableStateOf(ImportPreferences.quality(context)) }
@@ -84,7 +86,7 @@ internal fun LinkImportDialog(
         inspection?.cancel()
         state = LinkState.Inspecting
         inspection = scope.launch {
-            val result = inspectLink(context, value)
+            val result = inspectLink(context, value, trackId)
             if (!isActive) return@launch
             state = when (result) {
                 is LinkInspection.Audio -> LinkState.Direct(result, editedTitle ?: result.title)
@@ -106,6 +108,12 @@ internal fun LinkImportDialog(
         if (quality == next) return
         quality = next
         ImportPreferences.setQuality(context, next)
+        if (url.isNotBlank() && download !is DownloadState.Active) analyze()
+    }
+
+    fun selectTrack(next: String) {
+        if (trackId == next) return
+        trackId = next
         if (url.isNotBlank() && download !is DownloadState.Active) analyze()
     }
 
@@ -169,6 +177,7 @@ internal fun LinkImportDialog(
                             value = url,
                             onValueChange = { value ->
                                 url = value
+                                trackId = null
                                 if (download !is DownloadState.Active) state = LinkState.Idle
                             },
                             label = stringResource(R.string.med_link_url_label),
@@ -195,6 +204,7 @@ internal fun LinkImportDialog(
                                         val clip = readClipboard(context)
                                         if (!clip.isNullOrBlank()) {
                                             url = clip
+                                            trackId = null
                                             state = LinkState.Idle
                                         }
                                     },
@@ -377,6 +387,35 @@ internal fun LinkImportDialog(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = RespiraColors.SecondaryText,
                                         )
+                                    }
+                                    if (current.audio.tracks.size > 1) {
+                                        item {
+                                            Column(
+                                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                            ) {
+                                                Text(
+                                                    text = stringResource(
+                                                        R.string.med_link_audio_track_label,
+                                                    ),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = RespiraColors.TertiaryText,
+                                                )
+                                                FlowRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                ) {
+                                                    val chosen = current.audio.selectedTrackId
+                                                    current.audio.tracks.forEach { track ->
+                                                        GhostPill(
+                                                            text = track.name,
+                                                            onClick = { selectTrack(track.id) },
+                                                            selected = track.id == chosen,
+                                                            modifier = Modifier.heightIn(min = 44.dp),
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                     item {
                                         val kind = stringResource(R.string.med_link_kind_youtube)

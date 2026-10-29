@@ -38,7 +38,7 @@ internal enum class FailureReason { NETWORK, TIMEOUT, TOO_LARGE, INVALID_RESPONS
 
 internal sealed interface AudioSource {
     data class Direct(val url: String) : AudioSource
-    data class YouTube(val videoId: String) : AudioSource
+    data class YouTube(val videoId: String, val languageId: String? = null) : AudioSource
 }
 
 internal enum class AudioKind { DIRECT, YOUTUBE }
@@ -57,6 +57,8 @@ internal sealed interface LinkInspection {
         val sizeBytes: Long?,
         val durationMs: Long? = null,
         val kind: AudioKind = AudioKind.DIRECT,
+        val tracks: List<YouTubeTrack> = emptyList(),
+        val selectedTrackId: String? = null,
     ) : LinkInspection
     data class Feed(val url: String, val title: String, val episodes: List<FeedEpisode>) : LinkInspection
     data class Unsupported(val reason: UnsupportedReason) : LinkInspection
@@ -91,10 +93,14 @@ private class FeedTooLargeException : IOException("Feed exceeds 3 MB")
 private class TooManyRedirectsException : IOException("Too many redirects")
 private class DownloadTooLargeException : IOException("Download exceeds 300 MB")
 
-internal suspend fun inspectLink(context: Context, rawUrl: String): LinkInspection =
+internal suspend fun inspectLink(
+    context: Context,
+    rawUrl: String,
+    trackId: String? = null,
+): LinkInspection =
     withContext(Dispatchers.IO) {
         val url = normalizeUrl(rawUrl)
-        if (isYouTubeLink(rawUrl, url)) return@withContext resolveYouTube(context, rawUrl)
+        if (isYouTubeLink(rawUrl, url)) return@withContext resolveYouTube(context, rawUrl, trackId)
         val parsed = url
             ?: return@withContext LinkInspection.Unsupported(UnsupportedReason.INVALID_URL)
         try {
@@ -118,18 +124,20 @@ private fun isYouTubeLink(raw: String, url: URL?): Boolean {
     return url != null && isYouTubeHost(url.host)
 }
 
-private fun resolveYouTube(context: Context, raw: String): LinkInspection {
+private fun resolveYouTube(context: Context, raw: String, trackId: String?): LinkInspection {
     val id = YouTubeResolver.videoId(raw)
         ?: return LinkInspection.Unsupported(UnsupportedReason.YOUTUBE)
-    val audio = YouTubeResolver.resolve(id, ImportPreferences.quality(context)).getOrElse {
+    val audio = YouTubeResolver.resolve(id, ImportPreferences.quality(context), trackId).getOrElse {
         return LinkInspection.Unsupported(UnsupportedReason.YOUTUBE_UNAVAILABLE)
     }
     return LinkInspection.Audio(
-        source = AudioSource.YouTube(id),
+        source = AudioSource.YouTube(id, audio.selectedTrackId),
         title = audio.title,
         sizeBytes = audio.sizeBytes,
         durationMs = audio.durationMs,
         kind = AudioKind.YOUTUBE,
+        tracks = audio.tracks,
+        selectedTrackId = audio.selectedTrackId,
     )
 }
 
@@ -144,7 +152,11 @@ internal suspend fun downloadAudio(
     try {
         val stream = when (source) {
             is AudioSource.YouTube ->
-                resolveYouTubeStream(source.videoId, ImportPreferences.quality(context))
+                resolveYouTubeStream(
+                    source.videoId,
+                    ImportPreferences.quality(context),
+                    source.languageId,
+                )
             is AudioSource.Direct -> {
                 val parsed = normalizeUrl(source.url) ?: throw IOException("Invalid audio URL")
                 val opened = openFollowingRedirects(parsed, range = RANGE_FROM_START)
@@ -156,7 +168,7 @@ internal suspend fun downloadAudio(
                     null
                 }
                 if (redirectedId != null) {
-                    resolveYouTubeStream(redirectedId, ImportPreferences.quality(context))
+                    resolveYouTubeStream(redirectedId, ImportPreferences.quality(context), null)
                 } else {
                     val code = opened.first.responseCode
                     AudioStream(
@@ -326,7 +338,7 @@ internal suspend fun importSharedAudio(
 private fun inspectUrl(context: Context, start: URL): LinkInspection {
     val (connection, finalUrl) = openFollowingRedirects(start)
     try {
-        if (isYouTubeHost(finalUrl.host)) return resolveYouTube(context, finalUrl.toString())
+        if (isYouTubeHost(finalUrl.host)) return resolveYouTube(context, finalUrl.toString(), null)
         val code = connection.responseCode
         if (code !in 200..299) return LinkInspection.Failure(FailureReason.HTTP_ERROR)
 
@@ -425,10 +437,14 @@ private class AudioStream(
     val artworkUrl: String? = null,
 )
 
-private fun resolveYouTubeStream(videoId: String, quality: YouTubeQuality): AudioStream {
+private fun resolveYouTubeStream(
+    videoId: String,
+    quality: YouTubeQuality,
+    languageId: String?,
+): AudioStream {
     var lastError: IOException? = null
     repeat(MAX_STREAM_ATTEMPTS) {
-        val audio = YouTubeResolver.resolve(videoId, quality).getOrElse { error ->
+        val audio = YouTubeResolver.resolve(videoId, quality, languageId).getOrElse { error ->
             throw (error as? IOException) ?: IOException("YouTube resolve failed", error)
         }
         val url = normalizeUrl(audio.streamUrl) ?: throw IOException("Invalid stream URL")

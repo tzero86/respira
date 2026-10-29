@@ -93,7 +93,10 @@ internal object Downloads {
             .putExtra(DownloadService.EXTRA_TOKEN, generation)
             .putExtra(DownloadService.EXTRA_TITLE, title)
         when (source) {
-            is AudioSource.YouTube -> intent.putExtra(DownloadService.EXTRA_VIDEO_ID, source.videoId)
+            is AudioSource.YouTube -> {
+                intent.putExtra(DownloadService.EXTRA_VIDEO_ID, source.videoId)
+                source.languageId?.let { intent.putExtra(DownloadService.EXTRA_TRACK, it) }
+            }
             is AudioSource.Direct -> intent.putExtra(DownloadService.EXTRA_URL, source.url)
         }
         runCatching { ContextCompat.startForegroundService(context, intent) }

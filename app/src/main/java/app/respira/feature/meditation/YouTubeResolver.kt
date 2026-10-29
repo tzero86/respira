@@ -9,6 +9,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.GZIPInputStream
 
+internal data class YouTubeTrack(val id: String, val name: String)
+
 internal data class YouTubeAudio(
     val streamUrl: String,
     val title: String,
@@ -16,6 +18,8 @@ internal data class YouTubeAudio(
     val durationMs: Long?,
     val mimeType: String?,
     val artworkUrl: String? = null,
+    val tracks: List<YouTubeTrack> = emptyList(),
+    val selectedTrackId: String? = null,
 )
 
 /** Which YouTube stream a link import should take. */
@@ -71,6 +75,10 @@ internal object YouTubeResolver {
         val url: String,
         val contentLength: Long?,
         val mimeType: String,
+        val languageId: String?,
+        val trackName: String?,
+        val isDefaultTrack: Boolean,
+        val isAutoDubbed: Boolean,
     )
 
     private val CLIENTS = listOf(
@@ -132,15 +140,23 @@ internal object YouTubeResolver {
         return raw.trim().takeIf { VIDEO_ID.matches(it) }
     }
 
-    fun resolve(videoId: String, quality: YouTubeQuality): Result<YouTubeAudio> = try {
-        Result.success(resolveOrThrow(videoId, quality))
+    fun resolve(
+        videoId: String,
+        quality: YouTubeQuality,
+        trackId: String? = null,
+    ): Result<YouTubeAudio> = try {
+        Result.success(resolveOrThrow(videoId, quality, trackId))
     } catch (error: IOException) {
         Result.failure(error)
     } catch (error: Exception) {
         Result.failure(IOException(error.message ?: "YouTube resolve failed", error))
     }
 
-    private fun resolveOrThrow(videoId: String, quality: YouTubeQuality): YouTubeAudio {
+    private fun resolveOrThrow(
+        videoId: String,
+        quality: YouTubeQuality,
+        trackId: String?,
+    ): YouTubeAudio {
         val visitor = visitorData()
         var lastStatus: String? = null
         var lastError: IOException? = null
@@ -169,16 +185,23 @@ internal object YouTubeResolver {
             if (details == null) details = payload.optJSONObject("videoDetails")
             candidates += candidatesOf(formats)
             // Clients publish different itags, so keep asking until the best
-            // stream of the tier shows up.
-            if (candidates.any { it.itag == preferred.first() }) break
+            // stream of the tier shows up. A dubbed-only itag does not count
+            // unless that dub is the track the caller asked for.
+            val enough = candidates.any {
+                it.itag == preferred.first() &&
+                    (if (trackId == null) !it.isAutoDubbed else it.languageId == trackId)
+            }
+            if (enough) break
         }
-        val chosen = selectAudio(candidates, quality)
+        val requested = trackId?.let { id -> candidates.filter { it.languageId == id } }
+        val pool = requested?.ifEmpty { originalTracks(candidates) } ?: originalTracks(candidates)
+        val chosen = selectAudio(pool, quality)
         if (chosen == null) {
             throw lastStatus?.let { YouTubeUnavailableException(it) }
                 ?: lastError
                 ?: IOException("No audio stream")
         }
-        return buildAudio(videoId, details, chosen)
+        return buildAudio(videoId, details, chosen, candidates)
     }
 
     private fun player(
@@ -288,6 +311,7 @@ internal object YouTubeResolver {
         videoId: String,
         details: JSONObject?,
         chosen: Candidate,
+        candidates: List<Candidate>,
     ): YouTubeAudio {
         val videoDetails = details ?: JSONObject()
         val lengthSeconds = videoDetails.optString("lengthSeconds").toLongOrNull() ?: -1L
@@ -298,7 +322,27 @@ internal object YouTubeResolver {
             durationMs = (lengthSeconds * 1000L).takeIf { lengthSeconds > 0L },
             mimeType = chosen.mimeType,
             artworkUrl = thumbnailUrl(videoDetails),
+            tracks = tracksOf(candidates),
+            selectedTrackId = chosen.languageId,
         )
+    }
+
+    /**
+     * One entry per published audio track, default first so the picker offers the
+     * original before YouTube's auto-dubs, which sort to the end. Single-track
+     * videos publish no `audioTrack` object at all, so this stays empty.
+     */
+    private fun tracksOf(candidates: List<Candidate>): List<YouTubeTrack> {
+        val ordered = candidates
+            .filter { !it.languageId.isNullOrBlank() }
+            .sortedWith(
+                compareByDescending<Candidate> { it.isDefaultTrack }.thenBy { it.isAutoDubbed },
+            )
+            .distinctBy { it.languageId }
+        return ordered.map { candidate ->
+            val id = candidate.languageId.orEmpty()
+            YouTubeTrack(id, candidate.trackName ?: id)
+        }
     }
 
     /**
@@ -334,6 +378,7 @@ internal object YouTubeResolver {
             val mime = format.optString("mimeType")
             if (!mime.startsWith("audio/")) continue
             val url = directUrl(format) ?: continue
+            val track = format.optJSONObject("audioTrack")
             candidates += Candidate(
                 itag = format.optInt("itag"),
                 bitrate = format.optLong("bitrate"),
@@ -341,27 +386,44 @@ internal object YouTubeResolver {
                 contentLength = format.optString("contentLength").toLongOrNull()
                     ?.takeIf { it > 0L },
                 mimeType = mime,
+                languageId = track?.optString("id")?.takeIf { it.isNotBlank() },
+                trackName = track?.optString("displayName")?.takeIf { it.isNotBlank() },
+                isDefaultTrack = track?.optBoolean("audioIsDefault") == true,
+                isAutoDubbed = track?.optBoolean("isAutoDubbed") == true,
             )
         }
         return candidates
     }
 
-    private fun selectAudio(candidates: List<Candidate>, quality: YouTubeQuality): Candidate? {
-        if (candidates.isEmpty()) return null
+    private fun selectAudio(pool: List<Candidate>, quality: YouTubeQuality): Candidate? {
+        if (pool.isEmpty()) return null
         for (itag in preferredItags(quality)) {
-            candidates.firstOrNull { it.itag == itag }?.let { return it }
+            pool.firstOrNull { it.itag == itag }?.let { return it }
         }
-        val sized = candidates.filter { it.contentLength != null }
+        val sized = pool.filter { it.contentLength != null }
         val bySizeThenBitrate = Comparator<Candidate> { left, right ->
             val size = left.contentLength!!.compareTo(right.contentLength!!)
             if (size != 0) size else left.bitrate.compareTo(right.bitrate)
         }
         return when (quality) {
             YouTubeQuality.LIGHT ->
-                sized.minWithOrNull(bySizeThenBitrate) ?: candidates.minByOrNull { it.bitrate }
+                sized.minWithOrNull(bySizeThenBitrate) ?: pool.minByOrNull { it.bitrate }
             YouTubeQuality.HIGH ->
-                sized.maxWithOrNull(bySizeThenBitrate) ?: candidates.maxByOrNull { it.bitrate }
+                sized.maxWithOrNull(bySizeThenBitrate) ?: pool.maxByOrNull { it.bitrate }
         }
+    }
+
+    /**
+     * Videos that publish several audio tracks list one entry per track, and the
+     * auto-dubbed ones come first. An auto-dubbed track is never chosen while an
+     * original exists; between several originals the default one wins.
+     */
+    private fun originalTracks(candidates: List<Candidate>): List<Candidate> {
+        val originals = candidates.filter { !it.isAutoDubbed }
+        val pool = originals.ifEmpty { candidates }
+        val default = pool.firstOrNull { it.isDefaultTrack } ?: return pool
+        val key = default.languageId ?: return pool
+        return pool.filter { it.languageId == key }.ifEmpty { pool }
     }
 
     private fun directUrl(format: JSONObject): String? {

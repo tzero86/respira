@@ -72,6 +72,7 @@
     <string name="med_link_youtube">Es una lista: abre un video y pega su enlace.</string>
     <string name="med_link_kind_youtube">YouTube</string>
     <string name="med_link_youtube_hint">Se descargará solo la pista de audio.</string>
+    <string name="med_link_audio_track_label">Pista de audio</string>
     <string name="med_link_youtube_unavailable">Ese video necesita sesión o no está disponible.</string>
     <string name="med_link_not_audio">Este enlace no apunta a un audio ni a un podcast.</string>
     <string name="med_link_invalid_url">Ese enlace no parece válido. Revísalo e inténtalo de nuevo.</string>
