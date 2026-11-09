@@ -3,13 +3,12 @@ package app.respira.feature.home
 import android.content.Context
 import android.widget.Toast
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,10 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -59,6 +57,8 @@ import app.respira.BuildConfig
 import app.respira.R
 import app.respira.audio.Audio
 import app.respira.audio.PlaybackMemory
+import app.respira.feature.breathe.BreathOrbHero
+import app.respira.ui.components.CardEmphasis
 import app.respira.feature.meditation.LibraryEvents
 import app.respira.feature.meditation.MeditationLibrary
 import app.respira.feature.meditation.Pick
@@ -93,7 +93,6 @@ import java.time.LocalTime
 fun HomeScreen(
     onBreathe: () -> Unit,
     onMeditate: () -> Unit,
-    onAmbience: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -186,9 +185,9 @@ fun HomeScreen(
         Spacer(Modifier.height(36.dp))
 
         Text(
-            text = greeting.uppercase(),
-            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.4.sp),
-            color = TertiaryText,
+            text = greeting,
+            style = MaterialTheme.typography.bodyLarge,
+            color = SecondaryText,
         )
         Spacer(Modifier.height(10.dp))
         Text(
@@ -199,19 +198,27 @@ fun HomeScreen(
 
         Spacer(Modifier.height(26.dp))
 
-        if (night) {
-            SleepRoutineCard(
-                onClick = {
-                    SleepRoutine.request()
-                    onBreathe()
-                },
-            )
-
-            Spacer(Modifier.height(22.dp))
-        } else {
-            BreatheHero(onClick = onBreathe)
-
-            Spacer(Modifier.height(22.dp))
+        AnimatedContent(
+            targetState = night,
+            label = "hero-moment",
+            transitionSpec = {
+                (fadeIn(tween(420)) + slideInVertically(tween(420)) { it / 10 }) togetherWith
+                    fadeOut(tween(240))
+            },
+        ) { isNight ->
+            Column {
+                if (isNight) {
+                    SleepRoutineCard(
+                        onClick = {
+                            SleepRoutine.request()
+                            onBreathe()
+                        },
+                    )
+                } else {
+                    BreatheHero(onClick = onBreathe)
+                }
+                Spacer(Modifier.height(22.dp))
+            }
         }
 
         ResumeSection(
@@ -257,27 +264,6 @@ fun HomeScreen(
                     onBreathe()
                 },
             )
-
-            Spacer(Modifier.height(22.dp))
-
-            SectionLabel(stringResource(R.string.home_explore_label))
-            Spacer(Modifier.height(12.dp))
-
-            ExploreCard(
-                title = stringResource(R.string.home_card_meditate_title),
-                subtitle = stringResource(R.string.home_card_meditate_subtitle),
-                icon = R.drawable.ic_moon,
-                accent = RespiraColors.Violet,
-                onClick = onMeditate,
-            )
-            Spacer(Modifier.height(12.dp))
-            ExploreCard(
-                title = stringResource(R.string.home_card_sounds_title),
-                subtitle = stringResource(R.string.home_card_sounds_subtitle),
-                icon = R.drawable.ic_cloud_rain,
-                accent = Aqua,
-                onClick = onAmbience,
-            )
         }
 
         if (update != null) {
@@ -308,10 +294,11 @@ fun HomeScreen(
                     if (checking) R.string.update_checking else R.string.update_check,
                 ),
                 modifier = Modifier
+                    .minimumInteractiveComponentSize()
                     .clip(RoundedCornerShape(50))
                     .clickable(enabled = !checking) { checkManually() }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall,
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.labelMedium,
                 color = if (checking) TertiaryText else Aqua.copy(alpha = 0.85f),
             )
         }
@@ -397,6 +384,7 @@ private fun TonightCard(
         modifier = Modifier.fillMaxWidth(),
         borderColor = meditation.accent.copy(alpha = 0.28f),
         topTint = meditation.accent,
+        emphasis = CardEmphasis.Hero,
         onClick = onPlay,
         contentPadding = PaddingValues(14.dp),
     ) {
@@ -454,6 +442,7 @@ private fun ResumeCard(
         modifier = Modifier.fillMaxWidth(),
         borderColor = Aqua.copy(alpha = 0.30f),
         topTint = Aqua,
+        emphasis = CardEmphasis.Hero,
         onClick = onPlay,
         contentPadding = PaddingValues(14.dp),
     ) {
@@ -521,6 +510,7 @@ private fun SleepRoutineCard(onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         borderColor = RespiraColors.Violet.copy(alpha = 0.35f),
         topTint = RespiraColors.Violet,
+        emphasis = CardEmphasis.Hero,
         onClick = onClick,
         contentPadding = PaddingValues(20.dp),
     ) {
@@ -559,6 +549,7 @@ private fun SleepRoutineEntry(onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         borderColor = RespiraColors.Violet.copy(alpha = 0.28f),
         topTint = RespiraColors.Violet,
+        emphasis = CardEmphasis.Quiet,
         onClick = onClick,
         contentPadding = PaddingValues(14.dp),
     ) {
@@ -603,8 +594,8 @@ private fun FavoriteCard(
         modifier = Modifier
             .width(132.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(Color.White.copy(alpha = 0.05f))
-            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
+            .background(RespiraColors.Hairline.copy(alpha = 0.05f))
+            .border(1.dp, RespiraColors.Border, RoundedCornerShape(20.dp))
             .clickable(onClick = onPlay)
             .padding(10.dp),
     ) {
@@ -657,6 +648,7 @@ private fun FavoritesEmpty(onMeditate: () -> Unit) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
+        emphasis = CardEmphasis.Quiet,
         onClick = onMeditate,
         contentPadding = PaddingValues(16.dp),
     ) {
@@ -689,9 +681,9 @@ private fun BreatheHero(onClick: () -> Unit) {
             .background(
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFF14303F),
-                        Color(0xFF161A38),
-                        Color(0xFF1B1830),
+                        RespiraColors.HeroStart,
+                        RespiraColors.HeroMid,
+                        RespiraColors.HeroEnd,
                     ),
                 ),
             )
@@ -729,100 +721,7 @@ private fun BreatheHero(onClick: () -> Unit) {
                 )
             }
         }
-        Box(Modifier.size(118.dp)) {
-            BreathOrb(Modifier.fillMaxSize())
-        }
-    }
-}
-
-@Composable
-private fun BreathOrb(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "hero-orb")
-    val swell by transition.animateFloat(
-        initialValue = 0.72f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5600, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "hero-orb-swell",
-    )
-
-    Canvas(modifier) {
-        val radius = size.minDimension / 2f
-        val orb = radius * swell
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Aqua.copy(alpha = 0.34f), Color.Transparent),
-                center = center,
-                radius = orb,
-            ),
-            radius = orb,
-            center = center,
-        )
-        drawCircle(
-            color = Aqua.copy(alpha = 0.22f),
-            radius = radius * 0.94f,
-            center = center,
-            style = Stroke(width = 1.2f),
-        )
-        drawCircle(
-            color = Aqua.copy(alpha = 0.5f),
-            radius = orb * 0.64f,
-            center = center,
-            style = Stroke(width = 1.2f),
-        )
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 0.8f),
-                    Aqua.copy(alpha = 0.55f),
-                    Color.Transparent,
-                ),
-                center = center,
-                radius = orb * 0.42f,
-            ),
-            radius = orb * 0.42f,
-            center = center,
-        )
-    }
-}
-
-@Composable
-private fun ExploreCard(
-    title: String,
-    subtitle: String,
-    @DrawableRes icon: Int,
-    accent: Color,
-    onClick: () -> Unit,
-) {
-    GlassCard(
-        onClick = onClick,
-        shape = RoundedCornerShape(24.dp),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(icon = icon, tint = accent, size = 50.dp)
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Mist,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SecondaryText,
-                )
-            }
-            Icon(
-                painter = painterResource(R.drawable.ic_chevron_right),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = TertiaryText,
-            )
-        }
+        BreathOrbHero(Modifier.size(118.dp))
     }
 }
 

@@ -51,6 +51,7 @@ fun RespiraBottomBar(
     currentRoute: String?,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
+    nowPlaying: (@Composable () -> Unit)? = null,
 ) {
     GlassCard(
         modifier = modifier
@@ -61,6 +62,8 @@ fun RespiraBottomBar(
         shape = RoundedCornerShape(26.dp),
         contentPadding = PaddingValues(6.dp),
     ) {
+        // The now-playing strip shares this bar, so the two never stack.
+        nowPlaying?.invoke()
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             RespiraTabs.forEach { tab ->
                 val label = stringResource(tab.labelRes)

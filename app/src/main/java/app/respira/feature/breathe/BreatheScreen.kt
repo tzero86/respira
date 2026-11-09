@@ -60,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.respira.R
 import app.respira.ui.components.GhostPill
+import app.respira.ui.components.SegmentedChoice
 import app.respira.ui.components.PillButton
 import app.respira.ui.components.SoftIconButton
 import app.respira.feature.sleep.SleepRoutine
@@ -79,8 +80,8 @@ fun BreatheScreen(
 
     var patternId by rememberSaveable { mutableStateOf(BreathPatterns.first().id) }
     var sessionKey by rememberSaveable { mutableStateOf(3) }
-    var hapticsOn by rememberSaveable { mutableStateOf(true) }
-    var soundOn by rememberSaveable { mutableStateOf(true) }
+    var hapticsOn by remember { mutableStateOf(BreathePreferences.hapticsOn(context)) }
+    var soundOn by remember { mutableStateOf(BreathePreferences.soundOn(context)) }
     var showDurations by remember { mutableStateOf(false) }
     var routinePending by remember { mutableStateOf(false) }
     var routineTrackStarted by remember { mutableStateOf(false) }
@@ -223,7 +224,6 @@ fun BreatheScreen(
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
             .padding(top = 6.dp, bottom = 16.dp),
     ) {
@@ -291,89 +291,90 @@ fun BreatheScreen(
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        // The orb and the options scroll; the primary control and the toggles
+        // stay pinned at the bottom so pausing never needs a scroll.
+        val orbSize = (LocalConfiguration.current.screenHeightDp * 0.28f).coerceIn(190f, 260f).dp
 
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center,
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            Spacer(Modifier.height(10.dp))
+
             BreathOrb(
                 engine = engine,
-                modifier = Modifier.size(300.dp),
+                modifier = Modifier.size(orbSize),
             )
-        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 124.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            when (engine.status) {
-                BreathStatus.Idle -> IdleSummary(engine.pattern, engine.sessionMinutes)
-                BreathStatus.Complete -> CompletionSummary(
-                    elapsedSeconds = engine.elapsedSeconds,
-                    note = if (routineTrackStarted) {
-                        stringResource(R.string.sleep_routine_track_starting)
-                    } else {
-                        null
-                    },
-                    onAgain = begin,
-                    onDone = exit,
-                )
-                else -> ActiveSummary(
-                    engine = engine,
-                    phaseSeconds = phaseSeconds,
-                    remainingLabel = remainingLabel,
-                    paused = engine.status == BreathStatus.Paused,
-                )
-            }
-        }
-
-        if (engine.status != BreathStatus.Complete) {
-            Spacer(Modifier.height(12.dp))
-
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .heightIn(min = 124.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                BreathPatterns.forEach { option ->
-                    val chosen = engine.pattern.id == option.id
-                    GhostPill(
-                        text = stringResource(option.nameRes),
-                        selected = chosen,
-                        onClick = {
-                            patternId = option.id
-                            engine.selectPattern(option)
-                        },
-                        modifier = Modifier
-                            .heightIn(min = 44.dp)
-                            .semantics { selected = chosen },
+                when (engine.status) {
+                    BreathStatus.Idle -> IdleSummary(engine.pattern, engine.sessionMinutes)
+                    BreathStatus.Complete -> Unit
+                    else -> ActiveSummary(
+                        engine = engine,
+                        phaseSeconds = phaseSeconds,
+                        remainingLabel = remainingLabel,
+                        paused = engine.status == BreathStatus.Paused,
                     )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            if (engine.status != BreathStatus.Complete) {
+                Spacer(Modifier.height(12.dp))
 
-            GhostPill(
-                text = stringResource(R.string.sleep_routine_action),
-                onClick = { startRoutine() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 44.dp),
-                leading = {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_moon_star),
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = RespiraColors.Violet,
-                    )
+                // Patterns are alternatives, so they share one segmented track
+                // instead of reading as separate switches.
+                val patternOptions = BreathPatterns.map { it to stringResource(it.nameRes) }
+                SegmentedChoice(
+                    options = patternOptions,
+                    selected = engine.pattern,
+                    onSelect = { option ->
+                        patternId = option.id
+                        engine.selectPattern(option)
+                    },
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                GhostPill(
+                    text = stringResource(R.string.sleep_routine_action),
+                    onClick = { startRoutine() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                    leading = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_moon_star),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = RespiraColors.Violet,
+                        )
+                    },
+                )
+            }
+        }
+
+        if (engine.status == BreathStatus.Complete) {
+            CompletionSummary(
+                elapsedSeconds = engine.elapsedSeconds,
+                note = if (routineTrackStarted) {
+                    stringResource(R.string.sleep_routine_track_starting)
+                } else {
+                    null
                 },
+                onAgain = begin,
+                onDone = exit,
             )
-
-            Spacer(Modifier.height(18.dp))
+        } else {
+            Spacer(Modifier.height(12.dp))
 
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -397,14 +398,20 @@ fun BreatheScreen(
                     icon = R.drawable.ic_activity,
                     label = stringResource(R.string.breathe_haptics),
                     enabled = hapticsOn,
-                    onClick = { hapticsOn = !hapticsOn },
+                    onClick = {
+                        hapticsOn = !hapticsOn
+                        BreathePreferences.setHapticsOn(context, hapticsOn)
+                    },
                 )
                 Spacer(Modifier.width(10.dp))
                 TogglePill(
                     icon = R.drawable.ic_volume_2,
                     label = stringResource(R.string.breathe_sound),
                     enabled = soundOn,
-                    onClick = { soundOn = !soundOn },
+                    onClick = {
+                        soundOn = !soundOn
+                        BreathePreferences.setSoundOn(context, soundOn)
+                    },
                 )
             }
         }
@@ -463,7 +470,13 @@ private fun ActiveSummary(
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = "$phaseSeconds",
-                style = MaterialTheme.typography.headlineLarge,
+                // Digits are data, not display text: Manrope with tabular
+                // figures keeps the counter from shifting width as it ticks.
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontFamily = app.respira.ui.theme.Manrope,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    fontFeatureSettings = "tnum",
+                ),
                 color = accent,
             )
             Text(

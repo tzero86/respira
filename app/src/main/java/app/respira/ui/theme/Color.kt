@@ -27,4 +27,16 @@ object RespiraColors {
 
     val Line = Color(0x14FFFFFF)
     val LineStrong = Color(0x26FFFFFF)
+
+    /** Hairline separators and quiet outlines. */
+    val Hairline = Color(0x14FFFFFF)
+    /** Default outline on pills, chips and inputs. */
+    val Border = Color(0x1FFFFFFF)
+    /** Outline on interactive chrome that must read clearly. */
+    val BorderStrong = Color(0x38FFFFFF)
+
+    /** Hero gradient for the breathing card. */
+    val HeroStart = Color(0xFF14303F)
+    val HeroMid = Color(0xFF161A38)
+    val HeroEnd = Color(0xFF1B1830)
 }

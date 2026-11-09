@@ -61,7 +61,6 @@ fun RespiraApp() {
                         HomeScreen(
                             onBreathe = { navController.navigateTab(Routes.Breathe) },
                             onMeditate = { navController.navigateTab(Routes.Meditate) },
-                            onAmbience = { navController.navigateTab(Routes.Ambience) },
                         )
                     }
                     composable(Routes.Breathe) {
@@ -79,15 +78,16 @@ fun RespiraApp() {
                 }
             }
 
-            MiniPlayer(
-                onOpen = {
-                    Audio.hub.state.value.track?.id?.let { MeditationPlayerRequest.openAny(it) }
-                },
-            )
-
             RespiraBottomBar(
                 currentRoute = route.tabRoute(),
                 onSelect = { navController.navigateTab(it) },
+                nowPlaying = {
+                    MiniPlayer(
+                        onOpen = {
+                            Audio.hub.state.value.track?.id?.let { MeditationPlayerRequest.openAny(it) }
+                        },
+                    )
+                },
             )
         }
 

@@ -341,10 +341,10 @@ private fun SavedMixChip(
     val deleteDescription = stringResource(R.string.mixer_delete_mix)
     Row(
         modifier = Modifier
-            .height(44.dp)
+            .height(48.dp)
             .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.05f))
-            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(50)),
+            .background(RespiraColors.Hairline.copy(alpha = 0.05f))
+            .border(1.dp, RespiraColors.Border, RoundedCornerShape(50)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -356,12 +356,13 @@ private fun SavedMixChip(
             modifier = Modifier
                 .clickable(onClick = onLoad)
                 .semantics { contentDescription = loadDescription }
-                .padding(start = 14.dp, end = 8.dp),
+                .padding(start = 16.dp, end = 4.dp),
         )
+        // A full 48 dp target, separated from the name by its own padding, so
+        // the delete control is neither easy to hit by accident nor too small.
         Box(
             modifier = Modifier
-                .padding(end = 11.dp)
-                .size(20.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .clickable(onClick = onDelete),
             contentAlignment = Alignment.Center,
@@ -671,8 +672,12 @@ private fun SleepTimerSheet(
         }
 
         if (remaining != null) {
+            val endsAt = java.time.LocalTime.now()
+                .plusSeconds(remaining / 1000L)
+                .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
             Text(
-                text = stringResource(R.string.mixer_timer_ends_in, formatCountdown(remaining)),
+                text = stringResource(R.string.mixer_timer_ends_in, formatCountdown(remaining)) +
+                    " · " + stringResource(R.string.mixer_timer_ends_at, endsAt),
                 style = MaterialTheme.typography.labelMedium,
                 color = RespiraColors.Aqua,
                 modifier = Modifier.padding(top = 4.dp),

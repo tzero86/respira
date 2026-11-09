@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.respira.R
 import app.respira.audio.AmbienceLayer
+import app.respira.ui.components.CardEmphasis
 import app.respira.ui.components.GlassCard
 import app.respira.ui.theme.RespiraColors
 
@@ -90,11 +91,14 @@ internal fun LayerTile(
     val active = volume > 0.001f
     val name = stringResource(layer.nameRes)
 
+    // A playing layer takes its accent as a wash so the mix reads at a glance;
+    // a silent one recedes into a quiet surface.
     GlassCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        borderColor = if (active) style.accent.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.08f),
+        borderColor = if (active) style.accent.copy(alpha = 0.45f) else RespiraColors.Hairline,
         topTint = if (active) style.accent else Color.White,
+        emphasis = if (active) CardEmphasis.Standard else CardEmphasis.Quiet,
         onClick = onToggle,
         contentPadding = PaddingValues(14.dp),
     ) {

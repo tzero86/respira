@@ -123,6 +123,19 @@ python -m http.server 8123 --directory docs
 
 ## Status
 
+`0.1.0-alpha17` — a visual pass over the whole app, from a review of the UI.
+Breathe now keeps the Start/Pause control pinned at the bottom while the orb and
+the pattern choice scroll above it, and the pattern choice is a single segmented
+control instead of a row of pills. The mini player lives inside the bottom bar as
+a slim strip with a progress line, so the app has one floating bar, and the home
+screen no longer repeats the tabs as explore cards. Cards have three levels of
+emphasis, so the resume and tonight cards stand out from the rest; the home hero
+and the Breathe screen share one orb; the bedtime switch at 22:00 fades in. Touch
+targets are at least 48 dp, and the Ambience tiles tint playing layers with their
+accent. Haptics and sound toggles are remembered between launches, the sleep timer
+shows its end time, and the aurora backdrop holds still when the system has
+animations turned off.
+
 `0.1.0-alpha16` — YouTube videos that publish several audio tracks (its automatic
 dubbing) no longer import the wrong language. The player API now lists one audio
 stream per track — English and Portuguese dubs first, the original Spanish track
