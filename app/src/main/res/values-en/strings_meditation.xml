@@ -23,7 +23,6 @@
     <string name="med_import_error_title">Some files couldn’t be added</string>
     <string name="med_import_error_body">They may not allow lasting access. Try another file.</string>
     <string name="med_retry">Retry</string>
-    <string name="med_link_youtube_blocked">YouTube blocked the download. Try again later.</string>
 
     <string name="med_now_playing">Now playing</string>
     <string name="med_play">Play</string>
@@ -84,6 +83,7 @@
     <string name="med_link_http_error">The link returned an error. Try another one.</string>
     <string name="med_link_download_failed">Couldn\'t download the audio. Try again.</string>
     <string name="med_link_expired">The audio link expired. Try again.</string>
+    <string name="med_link_youtube_blocked">YouTube blocked the download. Try again later.</string>
     <string name="med_from_link">From a link</string>
     <string name="med_shared">Shared</string>
 
