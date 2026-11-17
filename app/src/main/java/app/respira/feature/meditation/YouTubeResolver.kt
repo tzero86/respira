@@ -20,6 +20,8 @@ internal data class YouTubeAudio(
     val artworkUrl: String? = null,
     val tracks: List<YouTubeTrack> = emptyList(),
     val selectedTrackId: String? = null,
+    val userAgent: String,
+    val chunkBytes: Long,
 )
 
 /** Which YouTube stream a link import should take. */
@@ -27,6 +29,8 @@ internal enum class YouTubeQuality { LIGHT, HIGH }
 
 internal class YouTubeUnavailableException(status: String) :
     IOException("YouTube video unavailable: $status")
+
+internal class YouTubeBlockedException : IOException("YouTube blocked the stream")
 
 internal const val YOUTUBE_USER_AGENT =
     "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip"
@@ -46,6 +50,10 @@ internal object YouTubeResolver {
     private const val MAX_REDIRECTS = 5
     private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
     private const val VISITOR_TTL_MS = 30 * 60 * 1000L
+
+    /** Gated clients 403 any Range span above 1 MiB, so chunk size rides with the client. */
+    private const val UNGATED_CHUNK_BYTES = 4L * 1024 * 1024
+    private const val GATED_CHUNK_BYTES = 1024 * 1024L
 
     private val LIGHT_ITAGS = listOf(600, 599, 249, 139)
     private val HIGH_ITAGS = listOf(140, 251, 600, 599)
@@ -67,6 +75,8 @@ internal object YouTubeResolver {
         val version: String,
         val userAgent: String,
         val extra: Map<String, Any>,
+        /** Its stream URLs 403 Range spans above 1 MiB. */
+        val gated: Boolean,
     )
 
     private class Candidate(
@@ -79,6 +89,7 @@ internal object YouTubeResolver {
         val trackName: String?,
         val isDefaultTrack: Boolean,
         val isAutoDubbed: Boolean,
+        val client: Client,
     )
 
     private val CLIENTS = listOf(
@@ -92,12 +103,14 @@ internal object YouTubeResolver {
                 "osName" to "visionOS",
                 "osVersion" to "2.0.0.22N198",
             ),
+            gated = false,
         ),
         Client(
             name = "ANDROID",
             version = "20.10.38",
             userAgent = YOUTUBE_USER_AGENT,
             extra = mapOf("androidSdkVersion" to 30),
+            gated = true,
         ),
         Client(
             name = "IOS",
@@ -109,6 +122,7 @@ internal object YouTubeResolver {
                 "osName" to "iPhone",
                 "osVersion" to "18.3.0.22D60",
             ),
+            gated = true,
         ),
         Client(
             name = "ANDROID_VR",
@@ -120,6 +134,7 @@ internal object YouTubeResolver {
                 "deviceMake" to "Oculus",
                 "deviceModel" to "Quest 3",
             ),
+            gated = true,
         ),
     )
 
@@ -162,7 +177,6 @@ internal object YouTubeResolver {
         var lastError: IOException? = null
         var details: JSONObject? = null
         val candidates = ArrayList<Candidate>()
-        val preferred = preferredItags(quality)
         for (client in CLIENTS) {
             val payload = try {
                 player(videoId, client, visitor)
@@ -183,25 +197,38 @@ internal object YouTubeResolver {
                 continue
             }
             if (details == null) details = payload.optJSONObject("videoDetails")
-            candidates += candidatesOf(formats)
-            // Clients publish different itags, so keep asking until the best
-            // stream of the tier shows up. A dubbed-only itag does not count
-            // unless that dub is the track the caller asked for.
-            val enough = candidates.any {
-                it.itag == preferred.first() &&
-                    (if (trackId == null) !it.isAutoDubbed else it.languageId == trackId)
-            }
-            if (enough) break
+            val own = candidatesOf(formats, client)
+            candidates += own
+            // The stream URL is only usable with the User-Agent and range limit of
+            // the client that signed it, so the first client that can serve this
+            // request decides; later clients stay as fallback.
+            val chosen = pickForTrack(own, quality, trackId)
+            if (chosen != null) return buildAudio(videoId, details, chosen, candidates)
         }
         val requested = trackId?.let { id -> candidates.filter { it.languageId == id } }
-        val pool = requested?.ifEmpty { originalTracks(candidates) } ?: originalTracks(candidates)
-        val chosen = selectAudio(pool, quality)
+        val chosen = selectAudio(
+            requested?.ifEmpty { originalTracks(candidates) } ?: originalTracks(candidates),
+            quality,
+        )
         if (chosen == null) {
             throw lastStatus?.let { YouTubeUnavailableException(it) }
                 ?: lastError
                 ?: IOException("No audio stream")
         }
         return buildAudio(videoId, details, chosen, candidates)
+    }
+
+    private fun pickForTrack(
+        candidates: List<Candidate>,
+        quality: YouTubeQuality,
+        trackId: String?,
+    ): Candidate? {
+        val pool = if (trackId == null) {
+            originalTracks(candidates)
+        } else {
+            candidates.filter { it.languageId == trackId }.ifEmpty { return null }
+        }
+        return selectAudio(pool, quality)
     }
 
     private fun player(
@@ -324,6 +351,8 @@ internal object YouTubeResolver {
             artworkUrl = thumbnailUrl(videoDetails),
             tracks = tracksOf(candidates),
             selectedTrackId = chosen.languageId,
+            userAgent = chosen.client.userAgent,
+            chunkBytes = if (chosen.client.gated) GATED_CHUNK_BYTES else UNGATED_CHUNK_BYTES,
         )
     }
 
@@ -371,7 +400,7 @@ internal object YouTubeResolver {
         YouTubeQuality.HIGH -> HIGH_ITAGS
     }
 
-    private fun candidatesOf(formats: JSONArray): List<Candidate> {
+    private fun candidatesOf(formats: JSONArray, client: Client): List<Candidate> {
         val candidates = ArrayList<Candidate>(formats.length())
         for (index in 0 until formats.length()) {
             val format = formats.optJSONObject(index) ?: continue
@@ -390,6 +419,7 @@ internal object YouTubeResolver {
                 trackName = track?.optString("displayName")?.takeIf { it.isNotBlank() },
                 isDefaultTrack = track?.optBoolean("audioIsDefault") == true,
                 isAutoDubbed = track?.optBoolean("isAutoDubbed") == true,
+                client = client,
             )
         }
         return candidates

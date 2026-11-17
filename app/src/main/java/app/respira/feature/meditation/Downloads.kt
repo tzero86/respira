@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-internal enum class DownloadFailure { UNAVAILABLE, EXPIRED, GENERIC, TOO_LARGE }
+internal enum class DownloadFailure { UNAVAILABLE, BLOCKED, EXPIRED, GENERIC, TOO_LARGE }
 
 internal sealed interface DownloadState {
     data object Idle : DownloadState

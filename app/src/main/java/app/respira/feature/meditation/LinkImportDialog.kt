@@ -646,6 +646,7 @@ private fun failureText(reason: FailureReason): String = when (reason) {
 @Composable
 private fun downloadFailureText(failure: DownloadFailure): String = when (failure) {
     DownloadFailure.UNAVAILABLE -> stringResource(R.string.med_link_youtube_unavailable)
+    DownloadFailure.BLOCKED -> stringResource(R.string.med_link_youtube_blocked)
     DownloadFailure.EXPIRED -> stringResource(R.string.med_link_expired)
     DownloadFailure.TOO_LARGE -> stringResource(R.string.med_link_too_large)
     DownloadFailure.GENERIC -> stringResource(R.string.med_link_download_failed)

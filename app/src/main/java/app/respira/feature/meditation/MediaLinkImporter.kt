@@ -182,6 +182,8 @@ internal suspend fun downloadAudio(
                         },
                         mimeHint = null,
                         isYouTube = false,
+                        userAgent = USER_AGENT,
+                        chunkBytes = CHUNK_BYTES,
                     )
                 }
             }
@@ -212,31 +214,30 @@ internal suspend fun downloadAudio(
 
             val compressed = stream.connection.contentEncoding
                 ?.equals("gzip", ignoreCase = true) == true
-            val total = if (compressed) {
-                null
-            } else {
-                stream.connection.contentLengthLong.takeIf { it > 0L } ?: stream.sizeHint
-            }
-            if (total != null && total > MAX_DOWNLOAD_BYTES) throw DownloadTooLargeException()
+            val served = stream.connection.contentLengthLong.takeIf { it > 0L }
+            // A ranged response reports only the served chunk, so the whole stream
+            // size comes from Content-Range or from the player metadata.
+            val wholeSize = if (compressed) null else stream.rangeTotal ?: stream.sizeHint ?: served
+            if (wholeSize != null && wholeSize > MAX_DOWNLOAD_BYTES) throw DownloadTooLargeException()
 
-            val rangeTotal = stream.rangeTotal
-                ?.takeIf { !compressed && it <= MAX_DOWNLOAD_BYTES }
+            val chunkTotal = if (compressed) null else stream.rangeTotal ?: stream.sizeHint
 
-            if (rangeTotal != null) {
+            if (code == 206 && chunkTotal != null) {
                 stream.connection.disconnect()
-                onProgress(0L, rangeTotal)
+                onProgress(0L, chunkTotal)
                 chunkedDownload(
                     url = stream.finalUrl,
                     part = part,
-                    total = rangeTotal,
-                    userAgent = if (stream.isYouTube) YOUTUBE_USER_AGENT else USER_AGENT,
+                    total = chunkTotal,
+                    userAgent = stream.userAgent,
+                    chunkBytes = stream.chunkBytes,
                     onProgress = onProgress,
                 )
             } else {
-                onProgress(0L, total)
+                onProgress(0L, wholeSize)
                 streamFor(stream.connection).use { input ->
                     FileOutputStream(part).use { output ->
-                        copyDownload(input, output, total, onProgress)
+                        copyDownload(input, output, wholeSize, onProgress)
                     }
                 }
             }
@@ -435,6 +436,9 @@ private class AudioStream(
     val mimeHint: String?,
     val isYouTube: Boolean,
     val artworkUrl: String? = null,
+    val userAgent: String,
+    /** Largest Range span the origin behind this URL accepts; gated YouTube clients stop at 1 MiB. */
+    val chunkBytes: Long,
 )
 
 private fun resolveYouTubeStream(
@@ -443,6 +447,7 @@ private fun resolveYouTubeStream(
     languageId: String?,
 ): AudioStream {
     var lastError: IOException? = null
+    var lastCode = 0
     repeat(MAX_STREAM_ATTEMPTS) {
         val audio = YouTubeResolver.resolve(videoId, quality, languageId).getOrElse { error ->
             throw (error as? IOException) ?: IOException("YouTube resolve failed", error)
@@ -450,8 +455,8 @@ private fun resolveYouTubeStream(
         val url = normalizeUrl(audio.streamUrl) ?: throw IOException("Invalid stream URL")
         val (connection, finalUrl) = openFollowingRedirects(
             url,
-            YOUTUBE_USER_AGENT,
-            range = RANGE_FROM_START,
+            audio.userAgent,
+            range = "bytes=0-${audio.chunkBytes - 1}",
         )
         val code = connection.responseCode
         if (code in 200..299) {
@@ -467,13 +472,20 @@ private fun resolveYouTubeStream(
                 mimeHint = audio.mimeType,
                 isYouTube = true,
                 artworkUrl = audio.artworkUrl,
+                userAgent = audio.userAgent,
+                chunkBytes = audio.chunkBytes,
             )
         }
         connection.disconnect()
+        lastCode = code
         if (code !in EXPIRED_STREAM_CODES) throw IOException("HTTP $code")
         lastError = IOException("HTTP $code")
     }
-    throw lastError ?: IOException("YouTube stream failed")
+    throw when (lastCode) {
+        403 -> YouTubeBlockedException()
+        410 -> IOException("HTTP 410")
+        else -> lastError ?: IOException("YouTube stream failed")
+    }
 }
 
 private fun contentRangeTotal(header: String?): Long? =
@@ -576,6 +588,7 @@ private suspend fun chunkedDownload(
     part: File,
     total: Long,
     userAgent: String,
+    chunkBytes: Long,
     onProgress: (downloaded: Long, total: Long?) -> Unit,
 ) {
     val nextChunk = AtomicLong(0L)
@@ -592,9 +605,9 @@ private suspend fun chunkedDownload(
                         val slice = ByteBuffer.allocateDirect(COPY_BUFFER)
                         while (true) {
                             val index = nextChunk.getAndIncrement()
-                            val start = index * CHUNK_BYTES
+                            val start = index * chunkBytes
                             if (start >= total) break
-                            val end = minOf(start + CHUNK_BYTES, total) - 1
+                            val end = minOf(start + chunkBytes, total) - 1
                             downloadChunk(
                                 url = url,
                                 channel = channel,

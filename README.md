@@ -1,4 +1,11 @@
 # Respira
+`0.1.0-alpha18` — YouTube links import again. A download now takes its stream URL,
+User-Agent and range limit from one player response, the ungated one, so the small
+stream the app prefers no longer comes from a gated client that refuses anything
+past its first megabyte. The gated clients stay as a slower fallback. When even a
+freshly resolved stream is refused, the import says YouTube blocked the download
+instead of claiming the link expired.
+
 
 A calm Android app for guided breathing, meditation listening, and a mixable ambience
 board. Spanish by default, English available in-app. No accounts, no ads. Everything

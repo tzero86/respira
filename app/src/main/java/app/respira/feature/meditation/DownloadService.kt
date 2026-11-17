@@ -121,6 +121,7 @@ internal class DownloadService : Service() {
     private fun classify(error: Throwable): DownloadFailure {
         val message = error.message.orEmpty()
         return when {
+            error is YouTubeBlockedException -> DownloadFailure.BLOCKED
             error is YouTubeUnavailableException -> DownloadFailure.UNAVAILABLE
             message.startsWith("HTTP 403") || message.startsWith("HTTP 410") -> DownloadFailure.EXPIRED
             isTooLarge(error) -> DownloadFailure.TOO_LARGE
